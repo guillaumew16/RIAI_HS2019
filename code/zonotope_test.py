@@ -25,7 +25,8 @@ class ZonotopeTest(unittest.TestCase):
         self.assertEqual(z.upper(), torch.tensor([[4]]))
 
     def test_multiD(self):
-        z = Zonotope(a0=torch.tensor([[0, 0, 0]], dtype=torch.float32), A=torch.tensor([[1, 0.5, 0], [1, 0.5, 1]], dtype=torch.float32))
+        z = Zonotope(a0=torch.tensor([[0, 0, 0]], dtype=torch.float32),
+                     A=torch.tensor([[1, 0.5, 0], [1, 0.5, 1]], dtype=torch.float32))
 
         self.assertTrue(torch.all(torch.eq(z.a0, torch.tensor([[0, 0, 0]]))))
         self.assertTrue(torch.all(torch.eq(z.A, torch.tensor([[1, 0.5, 0], [1, 0.5, 1]]))))
@@ -47,7 +48,8 @@ class ZonotopeTest(unittest.TestCase):
         self.assertTrue(torch.all(torch.eq(z.lower(), torch.tensor([[-3, -1, -1]]))))
         self.assertTrue(torch.all(torch.eq(z.upper(), torch.tensor([[5, -1, 1]]))))
 
-        z = Zonotope(a0=torch.tensor([[0, 0, 0]], dtype=torch.float32), A=torch.tensor([[1, 0.5, 0], [1, 0.5, 1]], dtype=torch.float32))
+        z = Zonotope(a0=torch.tensor([[0, 0, 0]], dtype=torch.float32),
+                     A=torch.tensor([[1, 0.5, 0], [1, 0.5, 1]], dtype=torch.float32))
         W = torch.tensor([[1, 1, 1], [0, 0, -1]], dtype=torch.float32)
         b = torch.tensor([1, 0], dtype=torch.float32)
         z = z.linear_transformation(W, b)
@@ -55,6 +57,26 @@ class ZonotopeTest(unittest.TestCase):
         self.assertTrue(torch.all(torch.eq(z.A, torch.tensor([[1.5, 0], [2.5, -1]]))))
         self.assertTrue(torch.all(torch.eq(z.lower(), torch.tensor([[-3, -1]]))))
         self.assertTrue(torch.all(torch.eq(z.upper(), torch.tensor([[5, 1]]))))
+
+    def test_convolution(self):
+        a0 = torch.ones(1, 1, 3, 3)
+        A = torch.tensor(
+            [[[[0., 1., 0.],
+               [1., 0.3, 1.],
+               [1., 1., 1.]]],
+             [[[0., 0., 0.],
+               [1., 0.3, 1.],
+               [1., 1., 1.]]],
+             [[[0., -1., 0.],
+               [1., 0.3, 1.],
+               [1., 1., 1.]]]])
+        z = Zonotope(a0=a0, A=A)
+        conv = torch.nn.Conv2d(1, 1, 3)
+        torch.nn.init.ones_(conv.weight)
+        torch.nn.init.ones_(conv.bias)
+        z = z.convolution(conv)
+        self.assertTrue(torch.all(torch.eq(z.a0, torch.tensor([[[[10.]]]]))))
+        self.assertTrue(torch.all(torch.eq(z.A, torch.tensor([[[[7.3]]], [[[6.3]]], [[[5.3]]]]))))
 
 
 if __name__ == '__main__':
