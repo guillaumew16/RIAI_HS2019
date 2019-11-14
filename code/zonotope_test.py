@@ -24,6 +24,21 @@ class ZonotopeTest(unittest.TestCase):
         self.assertEqual(z.lower(), torch.tensor([[0]]))
         self.assertEqual(z.upper(), torch.tensor([[4]]))
 
+    def test_multiD(self):
+        z = Zonotope(a0=torch.tensor([[0, 0, 0]], dtype=torch.float32), A=torch.tensor([[1, 0.5, 0], [1, 0.5, 1]], dtype=torch.float32))
+
+        self.assertTrue(torch.all(torch.eq(z.a0, torch.tensor([[0, 0, 0]]))))
+        self.assertTrue(torch.all(torch.eq(z.A, torch.tensor([[1, 0.5, 0], [1, 0.5, 1]]))))
+        self.assertTrue(torch.all(torch.eq(z.lower(), torch.tensor([[-2, -1, -1]]))))
+        self.assertTrue(torch.all(torch.eq(z.upper(), torch.tensor([[2, 1, 1]]))))
+
+        W = torch.tensor([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=torch.float32)
+        z = z.matmul(W)
+        self.assertTrue(torch.all(torch.eq(z.a0, torch.tensor([[0, 0, 0]]))))
+        self.assertTrue(torch.all(torch.eq(z.A, torch.tensor([[1, 0.5, 0], [1, 0.5, 1]]))))
+        self.assertTrue(torch.all(torch.eq(z.lower(), torch.tensor([[-2, -1, -1]]))))
+        self.assertTrue(torch.all(torch.eq(z.upper(), torch.tensor([[2, 1, 1]]))))
+
 
 if __name__ == '__main__':
     unittest.main()
