@@ -39,6 +39,14 @@ class ZonotopeTest(unittest.TestCase):
         self.assertTrue(torch.all(torch.eq(z.lower(), torch.tensor([[-2, -1, -1]]))))
         self.assertTrue(torch.all(torch.eq(z.upper(), torch.tensor([[2, 1, 1]]))))
 
+        W = torch.tensor([[1, 1, 1], [0, 0, 0], [0, 0, -1]], dtype=torch.float32)
+        b = torch.tensor([1, -1, 0], dtype=torch.float32)
+        z = z.linear_transformation(W, b)
+        self.assertTrue(torch.all(torch.eq(z.a0, torch.tensor([[1, -1, 0]]))))
+        self.assertTrue(torch.all(torch.eq(z.A, torch.tensor([[1.5, 0, 0], [2.5, 0, -1]]))))
+        self.assertTrue(torch.all(torch.eq(z.lower(), torch.tensor([[-3, -1, -1]]))))
+        self.assertTrue(torch.all(torch.eq(z.upper(), torch.tensor([[5, -1, 1]]))))
+
 
 if __name__ == '__main__':
     unittest.main()
