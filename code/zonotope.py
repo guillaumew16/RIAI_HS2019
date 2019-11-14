@@ -25,7 +25,7 @@ class Zonotope:
             return Zonotope(self.A * other, self.a0 * other)
 
     def matmul(self, other):
-        return Zonotope(torch.matmul(other, self.A), torch.matmul(other, self.a0))
+        return Zonotope(self.A.matmul(other), self.a0.matmul(other))
 
     def convolution(self, convolution):
         return Zonotope(convolution(self.A), convolution(self.a0))
@@ -37,7 +37,7 @@ class Zonotope:
         return self.a0 + (self.A * torch.sign(self.A)).sum(0)
 
     def linear_transformation(self, W, b):
-        return self.matmul(torch.transpose(W, 0, 1)) + b
+        return self.matmul(W.t()) + b
 
     def relu(self, lambdas):
         l = self.lower()
