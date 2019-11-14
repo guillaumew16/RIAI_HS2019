@@ -36,7 +36,7 @@ class Zonotope:
     def upper(self):
         return self.a0 + (self.A * torch.sign(self.A)).sum(0)
 
-    def linear(self, W, b):
+    def linear_transformation(self, W, b):
         return self.matmul(torch.transpose(W, 0, 1)) + b
 
     def relu(self, lambdas):
