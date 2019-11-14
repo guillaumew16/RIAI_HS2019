@@ -42,7 +42,7 @@ class Zonotope:
     def relu(self, lambdas):
         l = self.lower()
         u = self.upper()
-        intersect = ((l <= 0) * (u >= 0))[0]
+        intersect = ((l < 0) * (u > 0))[0]
         new_epslon_size = torch.nonzero(intersect).size(0)
         new_A_shape = (self.A.shape[0] + new_epslon_size, *self.A.shape[1:])
         A = torch.zeros(new_A_shape)
