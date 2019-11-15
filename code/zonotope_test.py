@@ -80,13 +80,15 @@ class ZonotopeTest(unittest.TestCase):
         z = Zonotope(a0=torch.tensor([[0, 1, -2]], dtype=torch.float32), A=torch.tensor([[1, 0.5, 0.5], [1, 0.5, 1]], dtype=torch.float32))
         lambdas = torch.zeros(z.a0.shape)
         z = z.relu(lambdas)
-        self.assertTrue(torch.all(torch.eq(z.a0, torch.tensor([[2, 1, 0]], dtype=torch.float32))))
-        self.assertTrue(torch.all(torch.eq(z.A, torch.tensor([[0, 0.5, 0], [0, 0.5, 0], [2.0, 0, 0]], dtype=torch.float32))))
+
+        self.assertTrue(torch.all(torch.eq(z.a0, torch.tensor([[1, 1, 0]], dtype=torch.float32))))
+        self.assertTrue(torch.all(torch.eq(z.A, torch.tensor([[0, 0.5, 0], [0, 0.5, 0], [1.0, 0, 0]], dtype=torch.float32))))
         z = Zonotope(a0=torch.tensor([[0, 1, -2]], dtype=torch.float32), A=torch.tensor([[1, 0.5, 0.5], [1, 0.5, 1]], dtype=torch.float32))
         lambdas = torch.ones(z.a0.shape) / 2
         z = z.relu(lambdas)
-        self.assertTrue(torch.all(torch.eq(z.a0, torch.tensor([[1, 1, 0]], dtype=torch.float32))))
-        self.assertTrue(torch.all(torch.eq(z.A, torch.tensor([[0.5, 0.5, 0], [0.5, 0.5, 0], [1.0, 0, 0]], dtype=torch.float32))))
+        self.assertTrue(torch.all(torch.eq(z.a0, torch.tensor([[0.5, 1, 0]], dtype=torch.float32))))
+        self.assertTrue(torch.all(torch.eq(z.A, torch.tensor([[0.5, 0.5, 0], [0.5, 0.5, 0], [0.5, 0, 0]], dtype=torch.float32))))
+
 
 if __name__ == '__main__':
     unittest.main()

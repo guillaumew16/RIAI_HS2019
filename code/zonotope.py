@@ -42,19 +42,31 @@ class Zonotope:
     def relu(self, lambdas):
         l = self.lower()
         u = self.upper()
-        intersect = ((l < 0) * (u > 0))[0]
-        new_epslon_size = torch.nonzero(intersect).size(0)
+
+        lower_map = (u <= 0)[0]
+        upper_map = (l >= 0)[0]
+        intersection_map = ((l < 0) * (u > 0))[0]
+        new_epslon_size = torch.nonzero(intersection_map).size(0)
         new_A_shape = (self.A.shape[0] + new_epslon_size, *self.A.shape[1:])
         A = torch.zeros(new_A_shape)
         a0 = self.a0.clone()
         mu = torch.zeros(a0.shape)
 
-        a0[:, (u <= 0)[0]] = 0
-        A[:, (u <= 0)[0]] = 0
+        a0[:, lower_map] = 0
+        A[:, lower_map] = 0
 
-        A[:self.A.shape[0], (l >= 0)[0]] = self.A[:, (l >= 0)[0]]
-        mu[:, intersect] = u[:, intersect] * (1 - lambdas[:, intersect])
-        a0[:, intersect] = a0[:, intersect] * lambdas[:, intersect] + mu[:, intersect]
-        A[:self.A.shape[0], intersect] = self.A[:, intersect] * lambdas[:, intersect]
-        A[self.A.shape[0]:, intersect] = torch.diag((mu[:, intersect]).reshape(-1))
+        A[:self.A.shape[0], upper_map] = self.A[:, upper_map]
+
+        breaking_point = u[:, intersection_map] / (u[:, intersection_map] - l[:, intersection_map])
+        use_l_map = lambdas[:, intersection_map] >= breaking_point
+
+        tmp = torch.zeros(mu[:, intersection_map].shape)
+        tmp[use_l_map] = - l[:, intersection_map][use_l_map] * lambdas[:, intersection_map][use_l_map]
+        tmp[~ use_l_map] = u[:, intersection_map][~ use_l_map] * (1 - lambdas[:, intersection_map][~ use_l_map])
+
+        mu[:, intersection_map] = tmp / 2
+
+        a0[:, intersection_map] = a0[:, intersection_map] * lambdas[:, intersection_map] + mu[:, intersection_map]
+        A[:self.A.shape[0], intersection_map] = self.A[:, intersection_map] * lambdas[:, intersection_map]
+        A[self.A.shape[0]:, intersection_map] = torch.diag((mu[:, intersection_map]).reshape(-1))
         return Zonotope(A, a0)
