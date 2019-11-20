@@ -78,6 +78,18 @@ class ZonotopeTest(unittest.TestCase):
         self.assertTrue(torch.all(torch.eq(z.a0, torch.tensor([[[[10.]]]]))))
         self.assertTrue(torch.all(torch.eq(z.A, torch.tensor([[[[7.3]]], [[[6.3]]], [[[5.3]]]]))))
 
+    def test_flatten(self):
+        a0 = torch.ones(1, 1, 2, 2)
+        A = torch.tensor(
+            [[[[0., 0.9],
+               [1., 0.3]]],
+             [[[-2., 0.1],
+               [2., 0.3]]]])
+        z = Zonotope(a0=a0, A=A)
+        z = z.flatten()
+        self.assertEqual(z.a0.shape, (1, 4))
+        self.assertEqual(z.A.shape, (2, 4))
+
     def test_relu(self):
         z = Zonotope(a0=torch.tensor([[0, 1, -2]], dtype=torch.float32),
                      A=torch.tensor([[1, 0.5, 0.5], [1, 0.5, 1]], dtype=torch.float32))

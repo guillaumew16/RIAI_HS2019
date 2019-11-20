@@ -21,6 +21,9 @@ class Zonotope:
     def __mul__(self, other):
         return Zonotope(self.A * other, self.a0 * other)
 
+    def flatten(self):
+        return Zonotope(torch.nn.Flatten()(self.A), torch.nn.Flatten()(self.a0))
+
     def matmul(self, other):
         return Zonotope(self.A.matmul(other), self.a0.matmul(other))
 
