@@ -1,5 +1,6 @@
 import unittest
 from zonotope import Zonotope
+from networks import Normalization
 import torch
 
 
@@ -89,6 +90,13 @@ class ZonotopeTest(unittest.TestCase):
         z = z.flatten()
         self.assertEqual(z.a0.shape, (1, 4))
         self.assertEqual(z.A.shape, (2, 4))
+
+    def test_normalization(self):
+        z = Zonotope(a0=torch.tensor([[0.1307, 0.1307, 0.1307]], dtype=torch.float32),
+                     A=torch.tensor([[0.3081, 0.3081, 0.3081], [0.3081, 0.3081, 0.3081]], dtype=torch.float32))
+        z = z.normalization(Normalization(device="CPU"))
+        self.assertTrue(torch.all(torch.eq(z.a0, torch.tensor([[0, 0, 0]]))))
+        self.assertTrue(torch.all(torch.eq(z.A, torch.tensor([[1, 1, 1], [1, 1, 1]]))))
 
     def test_relu(self):
         z = Zonotope(a0=torch.tensor([[0, 1, -2]], dtype=torch.float32),

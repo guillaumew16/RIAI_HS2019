@@ -27,6 +27,9 @@ class Zonotope:
     def matmul(self, other):
         return Zonotope(self.A.matmul(other), self.a0.matmul(other))
 
+    def normalization(self, normalization_layer):
+        return (self - normalization_layer.mean) * (1 / normalization_layer.sigma)
+
     def convolution(self, convolution):
         return Zonotope(convolution(self.A), convolution(self.a0))
 
