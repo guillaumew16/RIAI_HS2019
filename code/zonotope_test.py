@@ -59,6 +59,13 @@ class ZonotopeTest(unittest.TestCase):
         self.assertTrue(torch.all(torch.eq(z.lower(), torch.tensor([[-3, -1]]))))
         self.assertTrue(torch.all(torch.eq(z.upper(), torch.tensor([[5, 1]]))))
 
+        z = Zonotope(a0=torch.tensor([[1, 2, 1]], dtype=torch.float32),
+                     A=torch.tensor([[1, 0.5, 0], [1, 0.5, 1]], dtype=torch.float32))
+        self.assertEqual(z[0].a0, torch.tensor([[1]]))
+        self.assertTrue(torch.all(torch.eq(z[0].A, torch.tensor([[1], [1]]))))
+        self.assertEqual(z.sum().a0, torch.tensor([[4]]))
+        self.assertTrue(torch.all(torch.eq(z.sum().A, torch.tensor([[1.5], [2.5]]))))
+
     def test_convolution(self):
         a0 = torch.ones(1, 1, 3, 3)
         A = torch.tensor(
@@ -94,7 +101,7 @@ class ZonotopeTest(unittest.TestCase):
     def test_normalization(self):
         z = Zonotope(a0=torch.tensor([[0.1307, 0.1307, 0.1307]], dtype=torch.float32),
                      A=torch.tensor([[0.3081, 0.3081, 0.3081], [0.3081, 0.3081, 0.3081]], dtype=torch.float32))
-        z = z.normalization(Normalization(device="CPU"))
+        z = z.normalization(Normalization(device="cpu"))
         self.assertTrue(torch.all(torch.eq(z.a0, torch.tensor([[0, 0, 0]]))))
         self.assertTrue(torch.all(torch.eq(z.A, torch.tensor([[1, 1, 1], [1, 1, 1]]))))
 

@@ -21,6 +21,12 @@ class Zonotope:
     def __mul__(self, other):
         return Zonotope(self.A * other, self.a0 * other)
 
+    def __getitem__(self, item):
+        return Zonotope(self.A[:, item], self.a0[:, item])
+
+    def sum(self):
+        return Zonotope(self.A.sum(1, keepdim=True), self.a0.sum(1, keepdim=True))
+
     def flatten(self):
         return Zonotope(torch.nn.Flatten()(self.A), torch.nn.Flatten()(self.a0))
 
