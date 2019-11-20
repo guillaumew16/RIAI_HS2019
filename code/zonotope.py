@@ -19,10 +19,7 @@ class Zonotope:
         return self.__add__(-other)
 
     def __mul__(self, other):
-        if isinstance(other, Zonotope):
-            return Zonotope(self.A * other.A, self.a0 * other.a0)
-        else:
-            return Zonotope(self.A * other, self.a0 * other)
+        return Zonotope(self.A * other, self.a0 * other)
 
     def matmul(self, other):
         return Zonotope(self.A.matmul(other), self.a0.matmul(other))
