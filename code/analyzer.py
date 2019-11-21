@@ -31,8 +31,11 @@ class Analyzer:
         upper = torch.min(self.inp + self.epsilon, torch.ones(self.inp.shape))
         lower = torch.max(self.inp - self.epsilon, torch.zeros(self.inp.shape))
         self.inp = (upper + lower) / 2
-        self.epsilon = (upper - lower) / 2
-        return Zonotope(self.inp, self.epsilon)
+        A_shape = (self.inp.numel(), *self.inp[0].shape)
+        A = torch.zeros(A_shape)
+        A[:, :] = torch.diag(((upper - lower) / 2).reshape(-1))
+
+        return Zonotope(a0=self.inp, A=A)
 
     def loss(self, output):
         return (output - output[self.true_label]).relu().sum().upper()
@@ -49,6 +52,8 @@ class Analyzer:
             out = inp.normalization(layer)
         elif isinstance(layer, nn.Flatten):
             out = inp.flatten()
+        else:
+            raise Exception("Layer not implemented")
         return out
 
     def forward(self):
@@ -62,6 +67,7 @@ class Analyzer:
         result = False
         while not result:
             loss = self.loss(self.forward())
+
             # TODO floating point problems?
             if loss == 0:
                 result = True
@@ -69,9 +75,10 @@ class Analyzer:
             self.net.zero_grad()
             loss.backward()
             max_change = 0
-            for lamda_layer in self.lambdas:
-                lamda_layer = lamda_layer - self.learning_rate * lamda_layer.grad
-                max_change = max(max_change, self.learning_rate * lamda_layer.grad)
+            for i in range(len(self.lambdas)):
+                grad = self.lambdas[i].grad
+                self.lambdas[i] = self.lambdas[i] - grad * self.learning_rate
+                max_change = max(max_change, torch.max(grad))
             if max_change < self.delta:
                 break
         return result
