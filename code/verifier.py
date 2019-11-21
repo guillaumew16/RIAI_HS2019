@@ -1,13 +1,14 @@
 import argparse
 import torch
 from networks import FullyConnected, Conv
+from analyzer import Analyzer
 
 DEVICE = 'cpu'
 INPUT_SIZE = 28
 
 
 def analyze(net, inputs, eps, true_label):
-    return 0
+    return Analyzer(net, inputs, eps, true_label).analyze()
 
 
 def main():
