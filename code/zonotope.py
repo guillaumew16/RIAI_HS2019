@@ -51,6 +51,14 @@ class Zonotope:
     def linear_transformation(self, W, b):
         return self.matmul(W.t()) + b
 
+    def compute_lambda_breaking_point(self):
+        l = self.lower()
+        u = self.upper()
+        zero_map = (u - l != 0)[0]
+        lambdas = torch.zeros(self.a0.shape)
+        lambdas[:, zero_map] = u[:, zero_map] / (u[:, zero_map] - l[:, zero_map])
+        return lambdas
+
     def relu(self, lambdas):
         l = self.lower()
         u = self.upper()

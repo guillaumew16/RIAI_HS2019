@@ -15,35 +15,47 @@ class Analyzer:
         self.learning_rate = learning_rate
         self.delta = delta
         self.lambdas = []
-        for layer in net.layers:
+        self.__relu_counter = 0
+        self.init()
+
+    def init(self):
+        init_zonotope = self.input_zonotope.reset()
+        for layer in self.net.layers:
             if isinstance(layer, nn.ReLU):
-                lam = torch.zeros(layer.size())
+                lam = init_zonotope.compute_lambda_breaking_point()
                 lam.requires_grad_()
                 self.lambdas.append(lam)
+            init_zonotope = self.forward_step(init_zonotope, layer)
 
     def clip_input_zonotope(self):
         upper = torch.min(self.inp + self.epsilon, torch.ones(self.inp.shape))
         lower = torch.max(self.inp - self.epsilon, torch.zeros(self.inp.shape))
         self.inp = (upper + lower) / 2
         self.epsilon = (upper - lower) / 2
-        return Zonotope(self.inp, torch.ones(self.inp.shape) * self.epsilon)
+        return Zonotope(self.inp, self.epsilon)
 
     def loss(self, output):
         return (output - output[self.true_label]).relu().sum().upper()
 
+    def forward_step(self, inp, layer):
+        if isinstance(layer, nn.ReLU):
+            out = inp.relu(self.lambdas[self.__relu_counter])
+            self.__relu_counter += 1
+        elif isinstance(layer, nn.Linear):
+            out = inp.linear_transformation(layer.weight, layer.bias)
+        elif isinstance(layer, nn.Conv):
+            out = inp.convolution(layer)
+        elif isinstance(layer, Normalization):
+            out = inp.normalization(layer)
+        elif isinstance(layer, nn.Flatten):
+            out = inp.flatten()
+        return out
+
     def forward(self):
+        self.__relu_counter = 0
         out = self.input_zonotope.reset()
         for layer in self.net.layers:
-            if isinstance(layer, nn.ReLU):
-                out = out.relu()
-            elif isinstance(layer, nn.Linear):
-                out = out.linear_transformation(layer.weight, layer.bias)
-            elif isinstance(layer, nn.Conv):
-                out = out.convolution(layer)
-            elif isinstance(layer, Normalization):
-                out = out.normalization(layer)
-            elif isinstance(layer, nn.Flatten):
-                out = out.flatten()
+            out = self.forward_step(out, layer)
         return out
 
     def analyze(self):
