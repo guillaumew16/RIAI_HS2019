@@ -6,6 +6,9 @@ class Zonotope:
         self.a0 = a0
         self.A = A
 
+    def reset(self):
+        return Zonotope(self.A.clone().detach_(), self.a0.clone().detach_())
+
     def __add__(self, other):
         if isinstance(other, Zonotope):
             return Zonotope(self.A + other.A, self.a0 + other.a0)
