@@ -8,6 +8,8 @@ from networks import Normalization
 class Analyzer:
     def __init__(self, net, inp, eps, true_label, learning_rate=1e-3, delta=1e-9):
         self.net = net
+        for p in net.parameters():
+            p.requires_grad = False
         self.inp = inp
         self.epsilon = eps
         self.input_zonotope = self.clip_input_zonotope()
@@ -52,8 +54,6 @@ class Analyzer:
             out = inp.normalization(layer)
         elif isinstance(layer, nn.Flatten):
             out = inp.flatten()
-        else:
-            raise Exception("Layer not implemented")
         return out
 
     def forward(self):
@@ -75,10 +75,12 @@ class Analyzer:
             self.net.zero_grad()
             loss.backward()
             max_change = 0
-            for i in range(len(self.lambdas)):
-                grad = self.lambdas[i].grad
-                self.lambdas[i] = self.lambdas[i] - grad * self.learning_rate
+            for lambda_layer in self.lambdas:
+                grad = lambda_layer.grad
+                with torch.no_grad():
+                    lambda_layer -= grad * self.learning_rate
                 max_change = max(max_change, torch.max(grad))
+                lambda_layer.grad.zero_()
             if max_change < self.delta:
                 break
         return result

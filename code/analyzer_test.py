@@ -56,10 +56,12 @@ class AnalyzerTest(unittest.TestCase):
         self.assertTrue(loss > 0)
 
         x = torch.tensor([[0.1, 0.5, 0.9]])
-        a = Analyzer(MockNet3(x.shape[1]), x, 0.05, 1)
+        a = Analyzer(MockNet3(x.shape[1]), x, 0.05, 0)
+
         loss = a.loss(a.forward())
         loss.backward()
         self.assertTrue(loss > 0)
+
         grad = a.lambdas[0].grad
         self.assertTrue(grad[0, 0] > 0)
 
