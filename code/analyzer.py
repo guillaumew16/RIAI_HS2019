@@ -80,9 +80,11 @@ class Analyzer:
                 grad = lambda_layer.grad
                 with torch.no_grad():
                     lambda_layer -= grad * self.learning_rate
-
+                    lambda_layer = torch.max(torch.zeros_like(lambda_layer),
+                                             torch.min(torch.ones_like(lambda_layer), lambda_layer))
+                lambda_layer.requires_grad_()
                 max_change = max(max_change, torch.max(grad))
-                lambda_layer.grad.zero_()
+                # lambda_layer.grad.zero_()
             if max_change < self.delta:
                 break
         return result
