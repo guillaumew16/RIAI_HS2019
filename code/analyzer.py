@@ -6,7 +6,7 @@ from networks import Normalization
 
 
 class Analyzer:
-    def __init__(self, net, inp, eps, true_label, learning_rate=1e-3, delta=1e-9):
+    def __init__(self, net, inp, eps, true_label, learning_rate=1e-1, delta=1e-9):
         self.net = net
         for p in net.parameters():
             p.requires_grad = False
@@ -25,9 +25,10 @@ class Analyzer:
         for layer in self.net.layers:
             if isinstance(layer, nn.ReLU):
                 lam = init_zonotope.compute_lambda_breaking_point()
-                lam.requires_grad_()
                 self.lambdas.append(lam)
             init_zonotope = self.forward_step(init_zonotope, layer)
+        for lambda_layer in self.lambdas:
+            lambda_layer.requires_grad_()
 
     def clip_input_zonotope(self):
         upper = torch.min(self.inp + self.epsilon, torch.ones(self.inp.shape))
@@ -35,8 +36,7 @@ class Analyzer:
         self.inp = (upper + lower) / 2
         A_shape = (self.inp.numel(), *self.inp[0].shape)
         A = torch.zeros(A_shape)
-        A_map = self.inp[0] == self.inp[0]
-        A[:, A_map] = torch.diag(((upper - lower) / 2).reshape(-1))
+        A[:, self.inp[0] == self.inp[0]] = torch.diag(((upper - lower) / 2).reshape(-1))
 
         return Zonotope(a0=self.inp, A=A)
 
@@ -80,6 +80,7 @@ class Analyzer:
                 grad = lambda_layer.grad
                 with torch.no_grad():
                     lambda_layer -= grad * self.learning_rate
+
                 max_change = max(max_change, torch.max(grad))
                 lambda_layer.grad.zero_()
             if max_change < self.delta:

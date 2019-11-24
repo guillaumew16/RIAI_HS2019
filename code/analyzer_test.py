@@ -31,6 +31,21 @@ class MockNet3(nn.Module):
         self.layers = nn.Sequential(lin, nn.ReLU())
 
 
+class MockNet4(nn.Module):
+    def __init__(self, input_size):
+        super(MockNet4, self).__init__()
+
+        lin1 = nn.Linear(input_size, input_size)
+        torch.nn.init.eye_(lin1.weight)
+        torch.nn.init.constant_(lin1.bias, -0.1)
+
+        lin2 = nn.Linear(input_size, input_size)
+        torch.nn.init.eye_(lin2.weight)
+        torch.nn.init.constant_(lin2.bias, -0.1)
+
+        self.layers = nn.Sequential(lin1, nn.ReLU(), lin2, nn.ReLU())
+
+
 class AnalyzerTest(unittest.TestCase):
     def test_input_clipping(self):
         x = torch.tensor([[1, 0.98, 0.05, 0.5]])
@@ -64,6 +79,18 @@ class AnalyzerTest(unittest.TestCase):
 
         grad = a.lambdas[0].grad
         self.assertTrue(grad[0, 0] > 0)
+
+        x = torch.tensor([[0.1, 0.5, 0.9]])
+        a = Analyzer(MockNet4(x.shape[1]), x, 0.05, 0)
+
+        loss = a.loss(a.forward())
+        loss.backward()
+        self.assertTrue(loss > 0)
+
+        grad = a.lambdas[0].grad
+        self.assertTrue(grad is not None)
+        grad = a.lambdas[1].grad
+        self.assertTrue(grad is not None)
 
     def test_analyze(self):
         x = torch.tensor([[0.1, 0.5, 0.9]])
