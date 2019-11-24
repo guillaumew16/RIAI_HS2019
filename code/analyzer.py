@@ -35,7 +35,8 @@ class Analyzer:
         self.inp = (upper + lower) / 2
         A_shape = (self.inp.numel(), *self.inp[0].shape)
         A = torch.zeros(A_shape)
-        A[:, :] = torch.diag(((upper - lower) / 2).reshape(-1))
+        A_map = self.inp[0] == self.inp[0]
+        A[:, A_map] = torch.diag(((upper - lower) / 2).reshape(-1))
 
         return Zonotope(a0=self.inp, A=A)
 
@@ -48,7 +49,7 @@ class Analyzer:
             self.__relu_counter += 1
         elif isinstance(layer, nn.Linear):
             out = inp.linear_transformation(layer.weight, layer.bias)
-        elif isinstance(layer, nn.Conv):
+        elif isinstance(layer, nn.Conv2d):
             out = inp.convolution(layer)
         elif isinstance(layer, Normalization):
             out = inp.normalization(layer)
