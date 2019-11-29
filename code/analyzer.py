@@ -11,7 +11,7 @@ class Analyzer:
 
     Attributes:
         net (networks.Conv || networks.FullyConnected): the network to be analyzed
-        inp (torch.Tensor): input point (x0 in formulas.pdf), inp.shape matches net's input layer
+        inp (torch.Tensor): input point (I in formulas.pdf), inp.shape matches net's input layer
         eps (float): epsilon, > 0
         true_label (int): the true label of inp
         learning_rate (float, optional): TODO: figure out what this is

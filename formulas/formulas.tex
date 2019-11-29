@@ -1,0 +1,94 @@
+\documentclass{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{url} %, csquotes}
+\usepackage[bookmarks]{hyperref}
+%\usepackage{breqn}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\ind}{\mathbbm{1}}
+
+% \theoremstyle{definition}
+% \newtheorem{definition}{Definition}
+% \newtheorem{notation}{Notation}
+% \newtheorem{theorem}{Theorem}
+% \newtheorem{proposition}{Proposition}
+% \theoremstyle{remark}
+% \newtheorem{remark}{Remark}
+% \usepackage{graphicx}
+% \usepackage{caption}
+% \usepackage{subcaption}
+% \usepackage{ulem}
+% \usepackage[shortlabels]{enumitem}
+% \setlist[itemize]{label=\textbullet}
+
+\title{Title}
+\author{Simone \textsc{Barbarbo}, Guillaume \textsc{Wang}}
+% \date{}
+
+\begin{document}
+% \maketitle
+
+\section{Convolutional zonotope transformation}
+
+We can compute the zonotope approximation of the convolutional layers by considering each $\eps$ separately and computing the convolution of the coefficients corresponding to that $\eps$.
+
+Let $I$ be the unknown input tensor of the convolutional layer, $K$ be the filter and $A$ be $I$'s coefficients in the zonotope approximation.
+$K$ refers to the filter for a single channel. Neurons for a given layer are indexed by $[x,y]$.
+
+\begin{equation*}
+(I \times K) [x, y] = \sum_{i=0}^m \sum_{j=0}^m I[x+i - m/2, y+j - m/2] * K[i, j]
+\end{equation*}
+
+But $I[x, y] = \sum_{k=1}^n A_k[x, y]*\eps_k + A_0[x, y]$. So:
+
+\begin{equation*}
+(I \times K) [x, y] = \sum_{i=0}^m \sum_{j=0}^m (\sum_{k=1}^n A_k[x+i - m/2, y+j - m/2]*\eps_k + A_0[x+i - m/2, y+j - m/2]) * K[i, j]
+\end{equation*}
+Now I distribute the multiplication with the filter into the sum and change the order of the summations to get:
+\begin{equation*}
+(I \times K) [x, y] = \sum_{k=1}^n \sum_{i=0}^m \sum_{j=0}^m A_k[x+i - m/2, y+j - m/2] * K[i, j]*\eps_k + A_0[x+i - m/2, y+j - m/2] * K[i, j]
+\end{equation*}
+And now I take out the $\eps$ from the inner summation to get:
+\begin{equation*}
+(I \times K) [x, y] = \sum_{k=1}^n (\sum_{i=0}^m \sum_{j=0}^m A_k[x+i - m/2, y+j - m/2] * K[i, j])*\eps_k + \sum_{i=0}^m \sum_{j=0}^m A_0[x+i - m/2, y+j - m/2] * K[i, j]
+\end{equation*}
+As we can see from the equation, we have a zonotype where the center is given by a convolution over the centers of the input zonotope, $A_0$. While the coefficients of each $\eps$ are just a convolution over the coefficients of that $\eps$ in the input:
+\begin{equation*}
+(I \times K) [x, y] = \sum_{k=1}^n (A_k \times K)[x, y]*\eps_k + (A_0 \times K) [x, y]
+\end{equation*}
+
+It suffices to compute the $k+1$ convolutions of A and K, which can be done efficiently using pytorch.
+
+
+
+\section{Loss function}
+
+Output layer: $[o_1, o_2, ... o_n]$
+
+Zonotope approximation of verification objective (target t):
+\begin{equation}
+Z = \sum_{i=1}^{n} \max(o_i - o_t)
+\end{equation}
+
+$Z > 0$ only if one or more of the $o_i$ is greater that $o_t$.
+
+In particular if we compute the upper bound on $Z$:
+
+\begin{equation}
+L = max_\eps Z
+\end{equation}
+
+If $L = 0 => o_t >= o_i \forall i$ which is the property that we want to verify.
+
+Else: $L > 0$ and we could minimize L by gradient descent with respect to lambdas.
+
+In order to do that, we could build the entire Zonotope approximation with pythorch tensors and operators and then use it to compute gradients with respect to the lambdas.
+
+\end{document}

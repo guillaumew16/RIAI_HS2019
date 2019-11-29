@@ -1,1 +1,6 @@
 .vscode/
+
+# latex stuff
+formulas/*
+!formulas/formulas.pdf
+!formulas/formulas.tex
