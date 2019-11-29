@@ -2,6 +2,11 @@ import torch
 
 
 class Zonotope:
+    """
+    Attributes:
+        A: the tensor described in formulas.pdf, with shape ([shape of nn input layer], nb_eps)
+        a0:
+    """
     def __init__(self, A, a0):
         self.a0 = a0
         self.A = A

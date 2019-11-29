@@ -6,21 +6,43 @@ from networks import Normalization
 
 
 class Analyzer:
+    """
+    Analyzer expected by verifier.py, to be run using Analyzer.analyze()
+
+    Attributes:
+        net (networks.Conv || networks.FullyConnected): the network to be analyzed
+        inp (torch.Tensor): input point (x0 in formulas.pdf), inp.shape matches net's input layer
+        eps (float): epsilon, > 0
+        true_label (int): the true label of inp
+        learning_rate (float, optional): TODO: figure out what this is
+        delta (float, optional): TODO: figure out what this is
+
+        input_zonotope (Zonotope): TODO: figure out what this is
+        lambdas (list of float): TODO: figure out what this is
+        __relu_counter (int): TODO: figure out what this is
+
+    """
     def __init__(self, net, inp, eps, true_label, learning_rate=1e-1, delta=1e-9):
         self.net = net
         for p in net.parameters():
             p.requires_grad = False
         self.inp = inp
-        self.epsilon = eps
-        self.input_zonotope = self.clip_input_zonotope()
+        self.eps = eps
         self.true_label = true_label
         self.learning_rate = learning_rate
         self.delta = delta
+
+        # clip input_zonotope
+        upper = torch.min(self.inp + self.eps, torch.ones(self.inp.shape))
+        lower = torch.max(self.inp - self.eps, torch.zeros(self.inp.shape))
+        self.inp = (upper + lower) / 2
+        A = torch.zeros(self.inp.numel(), *self.inp[0].shape)
+        A[:, self.inp[0] == self.inp[0]] = torch.diag(((upper - lower) / 2).reshape(-1))
+        self.input_zonotope = Zonotope(a0=self.inp, A=A)
+
         self.lambdas = []
         self.__relu_counter = 0
-        self.init()
 
-    def init(self):
         init_zonotope = self.input_zonotope.reset()
         for layer in self.net.layers:
             if isinstance(layer, nn.ReLU):
@@ -29,16 +51,6 @@ class Analyzer:
             init_zonotope = self.forward_step(init_zonotope, layer)
         for lambda_layer in self.lambdas:
             lambda_layer.requires_grad_()
-
-    def clip_input_zonotope(self):
-        upper = torch.min(self.inp + self.epsilon, torch.ones(self.inp.shape))
-        lower = torch.max(self.inp - self.epsilon, torch.zeros(self.inp.shape))
-        self.inp = (upper + lower) / 2
-        A_shape = (self.inp.numel(), *self.inp[0].shape)
-        A = torch.zeros(A_shape)
-        A[:, self.inp[0] == self.inp[0]] = torch.diag(((upper - lower) / 2).reshape(-1))
-
-        return Zonotope(a0=self.inp, A=A)
 
     def loss(self, output):
         return (output - output[self.true_label]).relu().sum().upper()

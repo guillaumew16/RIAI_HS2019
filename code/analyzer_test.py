@@ -49,8 +49,8 @@ class MockNet4(nn.Module):
 class AnalyzerTest(unittest.TestCase):
     def test_input_clipping(self):
         x = torch.tensor([[1, 0.98, 0.05, 0.5]])
-        epsilon = 0.06
-        a = Analyzer(MockNet1(x.shape[1]), x, epsilon, None)
+        eps = 0.06
+        a = Analyzer(MockNet1(x.shape[1]), x, eps, None)
         self.assertTrue(torch.all(torch.isclose(a.inp, torch.tensor([[0.97, 0.96, 0.055, 0.5]]))))
         self.assertTrue(torch.all(torch.isclose(a.input_zonotope.A, torch.tensor([[0.03, 0, 0, 0],
                                                                                   [0, 0.04, 0, 0],
@@ -59,9 +59,9 @@ class AnalyzerTest(unittest.TestCase):
 
     def test_lambdas_initialization(self):
         x = torch.tensor([[0.1, 0.5, 0.9]])
-        epsilon = 0.05
+        eps = 0.05
         z = Zonotope(torch.tensor([[0.05, 0.05, 0.05]]), x)
-        a = Analyzer(MockNet2(), x, epsilon, None)
+        a = Analyzer(MockNet2(), x, eps, None)
         self.assertTrue(torch.allclose(a.lambdas[0], z.upper() / (z.upper() - z.lower())))
 
     def test_loss(self):
@@ -94,8 +94,8 @@ class AnalyzerTest(unittest.TestCase):
 
     def test_analyze(self):
         x = torch.tensor([[0.1, 0.5, 0.9]])
-        epsilon = 0.05
-        a = Analyzer(MockNet2(), x, epsilon, 2)
+        eps = 0.05
+        a = Analyzer(MockNet2(), x, eps, 2)
         self.assertTrue(a.analyze())
 
         a = Analyzer(MockNet2(), x, 0, 2)
