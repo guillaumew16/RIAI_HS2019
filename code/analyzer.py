@@ -25,7 +25,7 @@ class Analyzer:
     def __init__(self, net, inp, eps, true_label, learning_rate=1e-1, delta=1e-9):
         self.net = net
         for p in net.parameters():
-            p.requires_grad = False
+            p.requires_grad = False # avoid doing useless computations when calling .backward()
         self.inp = inp
         self.eps = eps
         self.true_label = true_label
