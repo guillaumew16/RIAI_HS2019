@@ -39,7 +39,7 @@
 
 \section{Notation}
 
-\subsection{Math formulation}
+\subsection{Mathematical formulation}
 
 Consider a linear layer $\RR^N \to \RR^M$ (where $N \in \NN$ for FC nets and $N \in \NN_x \times \NN_y \times \NN_{channel}$ for conv nets).
 
@@ -53,12 +53,19 @@ $n \in [N]$ means $n \in \{1,...,N\}$ if $N \in \NN$, or $(n_x, n_y, n_c) \in [|
 The mathematical objects described above are written resp. as:
 \begin{itemize}
     \item $Z = (a_0, A)$: \code{Zonotope(a0, A)}
-    \item $\RR^N$ (input space of the linear layer): tensors of shape \code{s} ($\simeq N$). (\code{s: torch.Size | tuple | list})
+    \item $\RR^N$: tensors of shape \code{s} ($\simeq N$)
     \item $a_0 \in \RR^N$: a Tensor \code{a0} of shape \code{s}
     \item $A \in \RR^{N*k}$: a Tensor \code{A} of shape \code{(k, *s)} (we placed \code{k} first to pass through \code{torch.nn.Conv2d} layers easily, cf section \ref{sec:conv_zonotope_transfo})
     \item $\eps \in [-1, 1]^k$ is never written explicitly in the code, since we work with zonotopes
     \item $l \in \{1,...,k\}$: obviously we index \code{0<=l<k} instead. But in general it shouldn't be necessary, as everything can be written as vector operations
     \item $A_n \in \RR^N$: \code{A[n, :]}, where \code{n} is a tuple of length \code{len(s)} (i.e 1 for FC nets and 3 for CN nets). But again, it shouldn't be necessary, writing vector operations should suffice.
+\end{itemize}
+
+Tensors used in Conv2d are of shape $(N, C​_{in}, H, W)$ and $(N, C_{out}, H_{out}, W_{out})$ where
+\begin{itemize}
+    \item $N$: batch size (in our case, it's the number of error terms)
+    \item $C$: number of channels
+    \item $H, W$: dimensions of the image
 \end{itemize}
 
 \section{Convolutional zonotope transformation} \label{sec:conv_zonotope_transfo}

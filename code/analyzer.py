@@ -12,7 +12,7 @@ class Analyzer:
         ?"forall x in input_zonotope, net(x) labels x as true_label"?
 
     Attributes:
-        net (networks.Conv || networks.FullyConnected): the network to be analyzed
+        net (networks.FullyConnected || networks.Conv): the network to be analyzed (first layer: Normalization)
         true_label (int): the true label of the input point
         learning_rate (float, optional): TODO: figure out what this is
         delta (float, optional): TODO: figure out what this is
@@ -25,7 +25,7 @@ class Analyzer:
 
     Args:
         net: see Attributes
-        inp (torch.Tensor): input point around which to analyze, inp.shape matches net's input layer
+        inp (torch.Tensor): input point around which to analyze, of shape torch.Size([1, 1, 28, 28])
         eps (float): epsilon, > 0, eps.shape = inp.shape
         true_label: see Attributes
         learning_rate: see Attributes
@@ -34,12 +34,13 @@ class Analyzer:
     def __init__(self, net, inp, eps, true_label, learning_rate=1e-1, delta=1e-9):
         self.net = net
         for p in net.parameters():
-            p.requires_grad = False # avoid doing useless computations when calling .backward()
+            p.requires_grad = False # avoid doing useless computations
         self.__inp = inp
         self.__eps = eps
         self.true_label = true_label
         self.learning_rate = learning_rate
         self.delta = delta
+        self.__relu_counter = 0
 
         upper = inp + eps
         lower = inp - eps
@@ -47,14 +48,13 @@ class Analyzer:
         lower.clamp_(min=0)
         a0 = (upper + lower) / 2 # center of the zonotope
         # A must have shape (nb_error_terms, *[shape of input])
-        # for the input layer, there is 1 error term for each coordinate, so nb_error_terms = inp.numel()
-        A = torch.zeros(a0.numel(), *a0[0].shape) 
-        A[:, a0[0] == a0[0]] = torch.diag(((upper - lower) / 2).reshape(-1))
+        # for the input layer, there is 1 error term for each pixel, so nb_error_terms = inp.numel()
+        A = torch.zeros(784, 1, 28, 28)
+        mask = torch.ones(1, 28, 28, dtype=torch.bool)
+        A[:, mask] = torch.diag( ((upper - lower) / 2).reshape(-1) )
         self.input_zonotope = Zonotope(a0=a0, A=A)
 
         self.lambdas = []
-        self.__relu_counter = 0
-
         init_zonotope = self.input_zonotope.reset()
         for layer in self.net.layers:
             if isinstance(layer, nn.ReLU):
