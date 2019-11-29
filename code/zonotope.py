@@ -4,15 +4,18 @@ import torch
 class Zonotope:
     """
     Attributes:
-        A: the tensor described in formulas.pdf, with shape ([shape of nn input layer], nb_eps)
-        a0:
+        A (torch.Tensor): the tensor described in formulas.pdf, with shape [nb_error_terms, *<shape of nn layer>]
+        a0 (torch.Tensor): the center of the zonotope, with shape [*<shape of nn layer>]
     """
     def __init__(self, A, a0):
         self.a0 = a0
         self.A = A
 
+    """
+    Zonotope with the same data but 
+    """
     def reset(self):
-        return Zonotope(self.A.clone().detach_(), self.a0.clone().detach_())
+        return Zonotope(self.A.clone().detach(), self.a0.clone().detach())
 
     def __add__(self, other):
         if isinstance(other, Zonotope):
@@ -48,10 +51,12 @@ class Zonotope:
         return Zonotope(convolution(self.A), convolution(self.a0))
 
     def lower(self):
-        return self.a0 + (self.A * (-torch.sign(self.A))).sum(0)
+        # return self.a0 + self.A.abs().sum(dim=0)
+        return self.a0 + (self.A * (-torch.sign(self.A))).sum(dim=0)
 
     def upper(self):
-        return self.a0 + (self.A * torch.sign(self.A)).sum(0)
+        # return self.a0 - self.A.abs().sum(dim=0)
+        return self.a0 + (self.A * torch.sign(self.A)).sum(dim=0)
 
     def linear_transformation(self, W, b):
         return self.matmul(W.t()) + b
