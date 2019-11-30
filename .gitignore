@@ -6,3 +6,8 @@ code/__pycache__/
 formulas/*
 !formulas/formulas.pdf
 !formulas/formulas.tex
+
+test_cases_generated/conv*/not_robust/*
+test_cases_generated/conv*/maybe_robust/*
+test_cases_generated/fc*/not_robust/*
+test_cases_generated/fc*/maybe_robust/*
