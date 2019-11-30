@@ -61,11 +61,11 @@ The mathematical objects described above are written resp. as:
     \item $A_n \in \RR^N$: \code{A[n, :]}, where \code{n} is a tuple of length \code{len(s)} (i.e 1 for FC nets and 3 for CN nets). But again, it shouldn't be necessary, writing vector operations should suffice.
 \end{itemize}
 
-Tensors used in Conv2d are of shape $(N, C​_{in}, H, W)$ and $(N, C_{out}, H_{out}, W_{out})$ where
+Tensors used in Conv2d are of shape $(N, C_{in}, H, W)$ and $(N, C_{out}, H_{out}, W_{out})$ where
 \begin{itemize}
     \item $N$: batch size (in our case, it's the number of error terms)
     \item $C$: number of channels
-    \item $H, W$: dimensions of the image
+    \item $H, W$: dimensions of the layer
 \end{itemize}
 
 \section{Convolutional zonotope transformation} \label{sec:conv_zonotope_transfo}

@@ -3,19 +3,31 @@ import torch
 
 class Zonotope:
     """
+    A representation of a zonotope by its center and its error terms coefficients (cf formulas.pdf).
+    
+    Trivially implements methods `__add__`, `__neg__`, `__sub__`, `__mul__`, `__getitem__`, `sum`,  making e.g Analyzer.loss() concise.
+    (These are only convenience stuff, not an attempt of "subclassing Tensors". pyTorch functions are always called on the underlying Tensors `a0` and `A`.)
+    
+    Also implements sum, flatten, 
+    
     Attributes:
         A (torch.Tensor): the tensor described in formulas.pdf, with shape [nb_error_terms, *<shape of nn layer>]
         a0 (torch.Tensor): the center of the zonotope, with shape [*<shape of nn layer>]
+
+    TODO: check shape of A and a0; I think a0 is actually [1, *<shape of nn layer>], when "shape of nn layer" means that
+    the corresponding torch.nn Layer is actually of signature [N, *<shape of nn layer>] -> [N, *<shape of nn output layer>] (where N is a batch size)
+    --> so, to check in the torch.nn docs.
     """
     def __init__(self, A, a0):
         self.a0 = a0
         self.A = A
 
-    """
-    Zonotope with the same data but 
-    """
     def reset(self):
-        return Zonotope(self.A.clone().detach(), self.a0.clone().detach())
+        """Returns a fresh Zonotope with the same data but no bindings to any output tensor"""
+        return Zonotope(self.A.clone().detach(), self.a0.clone().detach()) # cf doc of torch.Tensor.new_tensor()
+
+    # Trivial convenience methods
+    # ~~~~~~~~~~~~~~~~~~~
 
     def __add__(self, other):
         if isinstance(other, Zonotope):
@@ -30,33 +42,48 @@ class Zonotope:
         return self.__add__(-other)
 
     def __mul__(self, other):
+        """Multiplication by a constant"""
         return Zonotope(self.A * other, self.a0 * other)
 
     def __getitem__(self, item):
+        """For a flat zonotope (i.e living in a 'flattened' space with shape (n,) ), returns the zonotope of the `item`-th variable
+        TODO: check whether it does only work for a flat zonotope"""
         return Zonotope(self.A[:, item:item + 1], self.a0[:, item:item + 1])
 
     def sum(self):
+        """For a flat zonotope (i.e living in a 'flattened' space with shape (n,) ), returns the zonotope of the sum of all variables
+        TODO: check whether it does only work for a flat zonotope"""
         return Zonotope(self.A.sum(1, keepdim=True), self.a0.sum(1, keepdim=True))
 
+    def lower(self):
+        return self.a0 + self.A.abs().sum(dim=0)
+        # return self.a0 + (self.A * (-torch.sign(self.A))).sum(dim=0)
+
+    def upper(self):
+        return self.a0 - self.A.abs().sum(dim=0)
+        # return self.a0 + (self.A * torch.sign(self.A)).sum(dim=0)
+
+    # Handle the application of torch.nn layers
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     def flatten(self):
+        """Apply a torch.nn.Flatten() layer to this zonotope."""
         return Zonotope(torch.nn.Flatten()(self.A), torch.nn.Flatten()(self.a0))
 
-    def matmul(self, other):
-        return Zonotope(self.A.matmul(other), self.a0.matmul(other))
-
     def normalization(self, normalization_layer):
+        """Apply a normalization layer to this zonotope.
+        Args:
+            normalization_layer (networks.Normalization)"""
         return (self - normalization_layer.mean) * (1 / normalization_layer.sigma)
 
     def convolution(self, convolution):
+        """Apply a convolution layer to this zonotope.
+        Args:
+            convolution (torch.nn.Conv2d)"""
         return Zonotope(convolution(self.A), convolution(self.a0))
 
-    def lower(self):
-        # return self.a0 + self.A.abs().sum(dim=0)
-        return self.a0 + (self.A * (-torch.sign(self.A))).sum(dim=0)
-
-    def upper(self):
-        # return self.a0 - self.A.abs().sum(dim=0)
-        return self.a0 + (self.A * torch.sign(self.A)).sum(dim=0)
+    def matmul(self, other):
+        return Zonotope(self.A.matmul(other), self.a0.matmul(other))
 
     def linear_transformation(self, W, b):
         return self.matmul(W.t()) + b

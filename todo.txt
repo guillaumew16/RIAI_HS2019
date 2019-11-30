@@ -1,3 +1,4 @@
 - Use PGD to generate more test cases
 - Allow varying learning rate
 - use scipy.optimize instead of custom-made gradient descent (https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html#scipy.optimize.minimize)
+- use pytorch's optimizers first... http://mcneela.github.io/machine_learning/2019/09/03/Writing-Your-Own-Optimizers-In-Pytorch.html
