@@ -57,11 +57,11 @@ class Zonotope:
         return Zonotope(self.A.sum(1, keepdim=True), self.a0.sum(1, keepdim=True))
 
     def lower(self):
-        return self.a0 + self.A.abs().sum(dim=0)
+        return self.a0 - self.A.abs().sum(dim=0)
         # return self.a0 + (self.A * (-torch.sign(self.A))).sum(dim=0)
 
     def upper(self):
-        return self.a0 - self.A.abs().sum(dim=0)
+        return self.a0 + self.A.abs().sum(dim=0)
         # return self.a0 + (self.A * torch.sign(self.A)).sum(dim=0)
 
     # Handle the application of torch.nn layers
@@ -106,7 +106,9 @@ class Zonotope:
     def relu(self, lambdas=None):
         """Apply a convolution layer to this zonotope.
         Args:
-            lambdas (torch.Tensor || None): the lambdas to use, of shape . If None, """
+            lambdas (torch.Tensor || None): the lambdas to use, of shape [1, <*shape of nn layer>]. 
+                If None, do the vanilla DeepPoly transformation.
+        """
         l = self.lower()
         u = self.upper()
 

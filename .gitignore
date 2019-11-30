@@ -1,4 +1,5 @@
 .vscode/
+code/__pycache__/
 
 # latex stuff
 formulas/*
