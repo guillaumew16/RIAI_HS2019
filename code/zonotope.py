@@ -1,4 +1,5 @@
 import torch
+from torch.nn.functional import conv2d
 
 
 class Zonotope:
@@ -40,7 +41,11 @@ class Zonotope:
         return (self - normalization_layer.mean) * (1 / normalization_layer.sigma)
 
     def convolution(self, convolution):
-        return Zonotope(convolution(self.A), convolution(self.a0))
+        return Zonotope(
+            conv2d(self.A, weight=convolution.weight, bias=None, stride=convolution.stride, padding=convolution.padding,
+                   dilation=convolution.dilation, groups=convolution.groups),
+            conv2d(self.a0, weight=convolution.weight, bias=convolution.bias, stride=convolution.stride,
+                   padding=convolution.padding, dilation=convolution.dilation, groups=convolution.groups))
 
     def lower(self):
         return self.a0 + (self.A * (-torch.sign(self.A))).sum(0)

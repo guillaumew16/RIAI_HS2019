@@ -84,7 +84,7 @@ class ZonotopeTest(unittest.TestCase):
         torch.nn.init.ones_(conv.bias)
         z = z.convolution(conv)
         self.assertTrue(torch.all(torch.eq(z.a0, torch.tensor([[[[10.]]]]))))
-        self.assertTrue(torch.all(torch.eq(z.A, torch.tensor([[[[7.3]]], [[[6.3]]], [[[5.3]]]]))))
+        self.assertTrue(torch.all(torch.eq(z.A, torch.tensor([[[[6.3]]], [[[5.3]]], [[[4.3]]]]))))
 
     def test_flatten(self):
         a0 = torch.ones(1, 1, 2, 2)
