@@ -18,17 +18,23 @@ class Analyzer:
         self.delta = delta
         self.lambdas = []
         self.__relu_counter = 0
+        self.__forward = None
         self.init()
 
     def init(self):
         init_zonotope = self.input_zonotope.reset()
         for layer in self.net.layers:
             if isinstance(layer, nn.ReLU):
-                lam = init_zonotope.compute_lambda_breaking_point()
+                with torch.no_grad():
+                    lam = init_zonotope.compute_lambda_breaking_point()
+                lam.requires_grad_()
                 self.lambdas.append(lam)
             init_zonotope = self.forward_step(init_zonotope, layer)
+        self.__forward = init_zonotope
+        """
         for lambda_layer in self.lambdas:
             lambda_layer.requires_grad_()
+        """
 
     def clip_input_zonotope(self):
         upper = torch.min(self.inp + self.epsilon, torch.ones(self.inp.shape))
@@ -58,6 +64,10 @@ class Analyzer:
         return out
 
     def forward(self):
+        if self.__forward is not None:
+            result = self.__forward
+            self.__forward = None
+            return result
         self.__relu_counter = 0
         out = self.input_zonotope.reset()
         for layer in self.net.layers:
