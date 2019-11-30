@@ -95,12 +95,18 @@ class Zonotope:
         The returned value (`lambda_layer`) is a Tensor of shape [1, <*shape of nn layer>] (same as a0)"""
         l = self.lower()
         u = self.upper()
-        zero_map = (u - l != 0)[0]
+
+        # ignore variables don't require a lambda for ReLU transformation
+        intersection_map = ((l < 0) * (u > 0))[0] # entries s.t l < 0 < u. (implies u-l > 0 so division safe)
+
         lambda_layer = torch.zeros(self.a0.shape)
-        lambda_layer[:, zero_map] = u[:, zero_map] / (u[:, zero_map] - l[:, zero_map]) # equivalently, replace "[:,*]" by "[0,*]"
+        lambda_layer[:, intersection_map] = u[:, intersection_map] / (u[:, intersection_map] - l[:, intersection_map]) # equivalently, replace "[:,*]" by "[0,*]"
         return lambda_layer
 
     def relu(self, lambdas=None):
+        """Apply a convolution layer to this zonotope.
+        Args:
+            lambdas (torch.Tensor || None): the lambdas to use, of shape . If None, """
         l = self.lower()
         u = self.upper()
 
@@ -108,8 +114,8 @@ class Zonotope:
         upper_map = (l >= 0)[0]
         intersection_map = ((l < 0) * (u > 0))[0]
 
-        new_epslon_size = torch.nonzero(intersection_map).size(0)
-        new_A_shape = (self.A.shape[0] + new_epslon_size, *self.A.shape[1:])
+        new_eps_size = torch.nonzero(intersection_map).size(0)
+        new_A_shape = (self.A.shape[0] + new_eps_size, *self.A.shape[1:])
         A = torch.zeros(new_A_shape)
         a0 = self.a0.clone()
         mu = torch.zeros(a0.shape)

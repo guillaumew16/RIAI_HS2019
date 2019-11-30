@@ -18,7 +18,7 @@ class Analyzer:
         net (networks.FullyConnected || networks.Conv): the network to be analyzed (first layer: Normalization)
         true_label (int): the true label of the input point
         input_zonotope (Zonotope): the zonotope to analyze (derived from inp and eps in the __init__)
-        lambdas (list of Tensor): the list of the analyzer's parameters lambdas (one `lambda_layer` tensor for each ReLU layer)
+        lambdas (list of torch.Tensor): the list of the analyzer's parameters lambdas (one `lambda_layer` tensor for each ReLU layer)
             each element `lambda_layer` is a Tensor of shape [1, <*shape of nn layer>] (same as Zonotope.a0)
         learning_rate (float, optional): the learning rate for gradient descent in `analyze()`
         delta (float, optional): the tolerance threshold for gradient descent in `analyze()`
