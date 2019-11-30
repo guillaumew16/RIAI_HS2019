@@ -13,7 +13,6 @@ class Zonotope:
         A (torch.Tensor): the tensor described in formulas.pdf, with shape [nb_error_terms, *<shape of nn layer>]
         a0 (torch.Tensor): the center of the zonotope, with shape [1, *<shape of nn layer>]
 
-    TODO: check the above statement about the shape of A and a0
     TODO: it seems wasteful that a0 is of shape [1, *]. In fact a lot of the nn layer operations can be applied to the joint tensor [A, a0]
     (except for the fact the biases should not be added to A).
     """
