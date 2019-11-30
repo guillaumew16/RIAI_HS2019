@@ -8,25 +8,26 @@ class Zonotope:
     Trivially implements methods `__add__`, `__neg__`, `__sub__`, `__mul__`, `__getitem__`, `sum`,  making e.g Analyzer.loss() concise.
     (These are only convenience stuff, not an attempt of "subclassing Tensors". pyTorch functions are always called on the underlying Tensors `a0` and `A`.)
     
-    Also implements sum, flatten, 
-    
     Attributes:
         A (torch.Tensor): the tensor described in formulas.pdf, with shape [nb_error_terms, *<shape of nn layer>]
-        a0 (torch.Tensor): the center of the zonotope, with shape [*<shape of nn layer>]
+        a0 (torch.Tensor): the center of the zonotope, with shape [1, *<shape of nn layer>]
 
-    TODO: check shape of A and a0; I think a0 is actually [1, *<shape of nn layer>], when "shape of nn layer" means that
-    the corresponding torch.nn Layer is actually of signature [N, *<shape of nn layer>] -> [N, *<shape of nn output layer>] (where N is a batch size)
-    --> so, to check in the torch.nn docs.
+    TODO: check the above statement about the shape of A and a0
+    TODO: it seems wasteful that a0 is of shape [1, *]. In fact a lot of the nn layer operations can be applied to the joint tensor [A, a0]
+    (except for the fact the biases should not be added to A).
     """
     def __init__(self, A, a0):
         self.a0 = a0
         self.A = A
 
+    def __str__(self):
+        return "Zonotope center: {}, epsilon coefficients: {}".format(self.a0, self.A)
+
     def reset(self):
         """Returns a fresh Zonotope with the same data but no bindings to any output tensor"""
         return Zonotope(self.A.clone().detach(), self.a0.clone().detach()) # cf doc of torch.Tensor.new_tensor()
 
-    # Trivial convenience methods
+    # Convenience methods
     # ~~~~~~~~~~~~~~~~~~~
 
     def __add__(self, other):
@@ -80,6 +81,7 @@ class Zonotope:
         """Apply a convolution layer to this zonotope.
         Args:
             convolution (torch.nn.Conv2d)"""
+        # TODO: fix this: the bias should not be added for the transformation of A
         return Zonotope(convolution(self.A), convolution(self.a0))
 
     def matmul(self, other):
@@ -89,12 +91,14 @@ class Zonotope:
         return self.matmul(W.t()) + b
 
     def compute_lambda_breaking_point(self):
+        """Returns the lambda coefficients used by the vanilla DeepPoly.
+        The returned value (`lambda_layer`) is a Tensor of shape [1, <*shape of nn layer>] (same as a0)"""
         l = self.lower()
         u = self.upper()
         zero_map = (u - l != 0)[0]
-        lambdas = torch.zeros(self.a0.shape)
-        lambdas[:, zero_map] = u[:, zero_map] / (u[:, zero_map] - l[:, zero_map])
-        return lambdas
+        lambda_layer = torch.zeros(self.a0.shape)
+        lambda_layer[:, zero_map] = u[:, zero_map] / (u[:, zero_map] - l[:, zero_map]) # equivalently, replace "[:,*]" by "[0,*]"
+        return lambda_layer
 
     def relu(self, lambdas=None):
         l = self.lower()
@@ -135,6 +139,3 @@ class Zonotope:
 
         A[self.A.shape[0]:, intersection_map] = torch.diag((mu[:, intersection_map]).reshape(-1))
         return Zonotope(A, a0)
-
-    def __str__(self):
-        return "Zonotope center: {}, epsilon coefficients: {}".format(self.a0, self.A)

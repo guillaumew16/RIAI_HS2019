@@ -17,10 +17,11 @@ class Analyzer:
     Attributes:
         net (networks.FullyConnected || networks.Conv): the network to be analyzed (first layer: Normalization)
         true_label (int): the true label of the input point
-        learning_rate (float, optional): TODO: figure out what this is
-        delta (float, optional): TODO: figure out what this is
         input_zonotope (Zonotope): the zonotope to analyze (derived from inp and eps in the __init__)
-        lambdas (list of float): the list of the analyzer's parameters lambdas (one `lambda_layer` tensor for each ReLU layer)
+        lambdas (list of Tensor): the list of the analyzer's parameters lambdas (one `lambda_layer` tensor for each ReLU layer)
+            each element `lambda_layer` is a Tensor of shape [1, <*shape of nn layer>] (same as Zonotope.a0)
+        learning_rate (float, optional): the learning rate for gradient descent in `analyze()`
+        delta (float, optional): the tolerance threshold for gradient descent in `analyze()`
 
         __relu_counter (int): during .forward(), counts ReLU layers to keep track of where we are in the net. kept for convenience
         __inp (torch.Tensor): a copy of the input point inp. kept for convenience
@@ -58,8 +59,7 @@ class Analyzer:
         self.input_zonotope = Zonotope(a0=a0, A=A)
 
         self.lambdas = []
-        # the lambdas are initialized to what the vanilla DeepPoly transformations do
-        # so we apply the vanilla DeepPoly to a copy of self.input_zonotope
+        # the lambdas are initialized to what the vanilla DeepPoly would do
         init_zonotope = self.input_zonotope.reset()
         for layer in self.net.layers:
             if isinstance(layer, nn.ReLU):
@@ -96,7 +96,7 @@ class Analyzer:
         return out
 
     def forward(self):
-        """Resets self.input_zonotope and run the analyzer from scratch, using parameters `self.lambdas`."""
+        """Run the network transformations on `self.input_zonotope`, using parameters `self.lambdas` for ReLU layers."""
         self.__relu_counter = 0
         out = self.input_zonotope.reset()
         for layer in self.net.layers:
@@ -104,6 +104,7 @@ class Analyzer:
         return out
 
     def analyze(self):
+        # TODO: use an optimizer from pyTorch or SciPy instead of doing gradient descent ourselves
         """Run gradient descent on `self.lambdas` to minimize `self.loss(self.foward())`."""
         result = False
         while not result:
