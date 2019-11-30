@@ -24,6 +24,7 @@ class Analyzer:
         delta (float, optional): the tolerance threshold for gradient descent in `analyze()`
 
         __relu_counter (int): during .forward(), counts ReLU layers to keep track of where we are in the net. kept for convenience
+        __forward (Zonotope || None): a hack to avoid doing the same `forward()` run twice (once to initialize `self.lambdas`, once as part of `analyze()`)
         __inp (torch.Tensor): a copy of the input point inp. kept for convenience
         __eps (float): a copy of the queried eps. kept for convenience
 
@@ -45,6 +46,7 @@ class Analyzer:
         self.learning_rate = learning_rate
         self.delta = delta
         self.__relu_counter = 0
+        self.__forward = None
 
         upper = inp + eps
         lower = inp - eps
@@ -67,11 +69,16 @@ class Analyzer:
         init_zonotope = self.input_zonotope.reset()
         for layer in self.net.layers:
             if isinstance(layer, nn.ReLU):
-                lam = init_zonotope.compute_lambda_breaking_point()
+                with torch.no_grad():
+                    lam = init_zonotope.compute_lambda_breaking_point()
+                lam.requires_grad_()
                 self.lambdas.append(lam)
             init_zonotope = self.forward_step(init_zonotope, layer)
+        self.__forward = init_zonotope
+        """
         for lambda_layer in self.lambdas:
             lambda_layer.requires_grad_()
+        """
 
     def loss(self, output):
         """The zonotope Z=`output` is at the last layer, so elements x in Z correspond to logits.
@@ -101,6 +108,10 @@ class Analyzer:
 
     def forward(self):
         """Run the network transformations on `self.input_zonotope`, using parameters `self.lambdas` for ReLU layers."""
+        if self.__forward is not None:
+            result = self.__forward
+            self.__forward = None
+            return result
         self.__relu_counter = 0
         out = self.input_zonotope.reset()
         for layer in self.net.layers:

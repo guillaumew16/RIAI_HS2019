@@ -1,4 +1,5 @@
 import torch
+from torch.nn.functional import conv2d
 
 
 class Zonotope:
@@ -81,8 +82,11 @@ class Zonotope:
         """Apply a convolution layer to this zonotope.
         Args:
             convolution (torch.nn.Conv2d)"""
-        # TODO: fix this: the bias should not be added for the transformation of A
-        return Zonotope(convolution(self.A), convolution(self.a0))
+        return Zonotope(
+            conv2d(self.A, weight=convolution.weight, bias=None, stride=convolution.stride, padding=convolution.padding,
+                   dilation=convolution.dilation, groups=convolution.groups),
+            conv2d(self.a0, weight=convolution.weight, bias=convolution.bias, stride=convolution.stride,
+                   padding=convolution.padding, dilation=convolution.dilation, groups=convolution.groups))
 
     def matmul(self, other):
         return Zonotope(self.A.matmul(other), self.a0.matmul(other))
