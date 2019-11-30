@@ -51,7 +51,7 @@ class AnalyzerTest(unittest.TestCase):
         x = torch.tensor([[1, 0.98, 0.05, 0.5]])
         eps = 0.06
         a = Analyzer(MockNet1(x.shape[1]), x, eps, None)
-        self.assertTrue(torch.all(torch.isclose(a.inp, torch.tensor([[0.97, 0.96, 0.055, 0.5]]))))
+        self.assertTrue(torch.all(torch.isclose(a.input_zonotope.a0, torch.tensor([[0.97, 0.96, 0.055, 0.5]]))))
         self.assertTrue(torch.all(torch.isclose(a.input_zonotope.A, torch.tensor([[0.03, 0, 0, 0],
                                                                                   [0, 0.04, 0, 0],
                                                                                   [0, 0, 0.055, 0],
@@ -62,7 +62,12 @@ class AnalyzerTest(unittest.TestCase):
         eps = 0.05
         z = Zonotope(torch.tensor([[0.05, 0.05, 0.05]]), x)
         a = Analyzer(MockNet2(), x, eps, None)
-        self.assertTrue(torch.allclose(a.lambdas[0], z.upper() / (z.upper() - z.lower())))
+        
+        zupper = z.upper()
+        zlower = z.lower()
+        intersection_map_ext = (zlower<0) * (zupper>0) # of shape [1,*<shape of `intersection_map` in zonotope.py>]
+
+        self.assertTrue(torch.allclose(a.lambdas[0][intersection_map_ext], (z.upper() / (z.upper() - z.lower()) )[intersection_map_ext] ))
 
     def test_loss(self):
         x = torch.tensor([[0.1, 0.5, 0.9]])

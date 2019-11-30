@@ -53,8 +53,12 @@ class Analyzer:
         a0 = (upper + lower) / 2 # center of the zonotope
         # A must have shape (nb_error_terms, *[shape of input])
         # for the input layer, there is 1 error term for each pixel, so nb_error_terms = inp.numel()
-        A = torch.zeros(784, 1, 28, 28)
-        mask = torch.ones(1, 28, 28, dtype=torch.bool)
+
+        # A = torch.zeros(784, 1, 28, 28)
+        # mask = torch.ones(1, 28, 28, dtype=torch.bool)
+        A = torch.zeros(inp.numel(), *inp.shape[1:])
+        mask = torch.ones(*inp.shape[1:], dtype=torch.bool)
+        
         A[:, mask] = torch.diag( ((upper - lower) / 2).reshape(-1) )
         self.input_zonotope = Zonotope(a0=a0, A=A)
 
