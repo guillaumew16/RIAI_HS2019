@@ -18,11 +18,17 @@ class Analyzer:
         net (networks.FullyConnected || networks.Conv): the network to be analyzed (first layer: Normalization)
         true_label (int): the true label of the input point
         input_zonotope (Zonotope): the zonotope to analyze (derived from inp and eps in the __init__)
+        zonotopes (list of Zonotope): the list of the zonotope regions (one zonotope for each layer of net).
+            Each element is a Zonotope of shape [1, <*shape of nn layer>].
+            `zonotopes` is NOT initialized in `__init__`, but in `analyze()`.
+            Although not necessary, it's nice to keep a reference to the intermediary results of the transformations.
         lambdas (list of torch.Tensor): the list of the analyzer's parameters lambdas (one `lambda_layer` tensor for each ReLU layer).
             Each element `lambda_layer` is a Tensor of shape [1, <*shape of nn layer>] (same as Zonotope.a0).
-            `lambdas` is NOT initialized in __init__, but in `analyze()`.
-        learning_rate (float, optional): the learning rate for gradient descent in `analyze()`
-        delta (float, optional): the tolerance threshold for gradient descent in `analyze()`
+            `lambdas` is NOT initialized in `__init__`, but in `analyze()`.
+
+    TODO: these two attributes will be removed once we use pytorch optimizer instead of home-made gradient descent
+        learning_rate (float): the learning rate for gradient descent in `analyze()`
+        delta (float): the tolerance threshold for gradient descent in `analyze()`
 
         __relu_counter (int): during .forward(), counts ReLU layers to keep track of where we are in the net. kept for convenience
         __inp (torch.Tensor): a copy of the input point inp. kept for convenience
@@ -32,9 +38,9 @@ class Analyzer:
         net: see Attributes
         inp (torch.Tensor): input point around which to analyze, of shape torch.Size([1, 1, 28, 28])
         eps (float): epsilon, > 0, eps.shape = inp.shape
-        true_label: see Attributes
-        learning_rate: see Attributes
-        delta: see Attributes
+        true_label (int): see Attributes
+        learning_rate (float, optional): see Attributes
+        delta (float, optional): see Attributes
     """
 
     def __init__(self, net, inp, eps, true_label, learning_rate=1e-2, delta=1e-9):
@@ -67,46 +73,23 @@ class Analyzer:
 
         self.lambdas = [] # initialization is done in `analyze()` directly
 
-    def loss(self, output):
-        """The zonotope Z=`output` is at the last layer, so elements x in Z correspond to logits.
+    def loss(self, out_zonotope): # TODO: (globally speaking,) using type annotations would probably reduce source code verbosity...
+        """Elements x in the last (concrete) layer correspond to logits.
+        Args:
+            out_zonotope (Zonotope)
+
         Returns the sum of violations (cf formulas.pdf):
             max_{x(=logit) in output_zonotope} sum_{label l s.t logit[l] > logit[true_label]} (logit[l] - logit[true_label])
         """
-        return (output - output[self.true_label]).relu().sum().upper()
-
-    def forward_step(self, inp_zono, layer):
-        """Applies `layer` to `inp_zono` (using `self.lambdas` if `layer` is a ReLU) and returns the result.
-        Args:
-            inp_zono (Zonotope): the input zonotope
-            layer (nn.ReLU || nn.Linear || nn.Conv2d || nn.Flatten || Normalization): the layer to apply
-        """
-        if isinstance(layer, nn.ReLU):
-            out = inp_zono.relu(self.lambdas[self.__relu_counter])
-            self.__relu_counter += 1
-        elif isinstance(layer, nn.Linear):
-            out = inp_zono.linear_transformation(layer.weight, layer.bias)
-        elif isinstance(layer, nn.Conv2d):
-            out = inp_zono.convolution(layer)
-        elif isinstance(layer, Normalization):
-            out = inp_zono.normalization(layer)
-        elif isinstance(layer, nn.Flatten):
-            out = inp_zono.flatten()
-        return out
-
-    def forward(self):
-        """Run the network transformations on `self.input_zonotope`, using parameters `self.lambdas` for ReLU layers."""
-        self.__relu_counter = 0
-        out = self.input_zonotope.reset()
-        for layer in self.net.layers:
-            out = self.forward_step(out, layer)
-        return out
+        # TODO: can use https://github.com/szagoruyko/pytorchviz to visualize loss() too.
+        return (out_zonotope - out_zonotope[self.true_label]).relu().sum().upper()
 
     def analyze(self):
         # TODO: use an optimizer from pyTorch or SciPy instead of doing gradient descent ourselves
         """Run gradient descent on `self.lambdas` to minimize `self.loss(self.foward())`."""
 
-        # bind self.lambdas and self.zonotopes as variables of the net
-        # the lambdas are initialized to what the vanilla DeepPoly would do
+        # register self.lambdas and self.zonotopes as variables of the net
+        # the lambdas are initialized to what the vanilla DeepZ would do
         init_zonotope = self.input_zonotope.reset()
         for layer in self.net.layers:
             if isinstance(layer, nn.ReLU):

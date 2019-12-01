@@ -24,10 +24,13 @@ class Zonotope:
     def __str__(self):
         return "Zonotope center: {}, epsilon coefficients: {}".format(self.a0, self.A)
 
-    # TODO: test this, maybe change this to a0.shape[1:]...
     @property
-    def shape(self):
-        return a0.shape
+    def dim(self):
+        return A.shape[1:]
+
+    @property
+    def nb_error_terms(self):
+        return A.shape[0]
 
     def reset(self):
         """Returns a fresh Zonotope with the same data but no bindings to any output tensor"""
@@ -104,7 +107,7 @@ class Zonotope:
         return self.matmul(W.t()) + b
 
     def compute_lambda_breaking_point(self):
-        """Returns the lambda coefficients used by the vanilla DeepPoly.
+        """Returns the lambda coefficients used by the vanilla DeepZ.
         The returned value (`lambda_layer`) is a Tensor of shape [1, <*shape of nn layer>] (same as a0)"""
         l = self.lower()
         u = self.upper()
@@ -121,7 +124,7 @@ class Zonotope:
         """Apply a convolution layer to this zonotope.
         Args:
             lambdas (torch.Tensor || None): the lambdas to use, of shape [1, <*shape of nn layer>].
-                If None, do the vanilla DeepPoly transformation.
+                If None, do the vanilla DeepZ transformation.
         """
         l = self.lower()
         u = self.upper()
