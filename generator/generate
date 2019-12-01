@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [[ $# -ne 1 ]]; then
+	num=1
+else
+	num=$1
+fi
+
+# generate `$1` new test cases for each net
+
+for net in fc1 fc2 fc3 fc4 fc5 conv1 conv2 conv3 conv4 conv5
+do
+	echo "Generating ${num} test cases for network ${net}..."
+	python generator.py --net ${net} --num ${num}
+	echo "\n"
+done

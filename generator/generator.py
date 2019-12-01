@@ -65,6 +65,8 @@ mnist_dataset = datasets.MNIST(DATASET_PATH, train=True, download=True, transfor
 ))
 mnist_loader = torch.utils.data.DataLoader(mnist_dataset, shuffle=True)
 
+
+
 def generate_uid():
     uids = []
     with os.scandir(BASE_DIR_PATH) as it:
@@ -102,10 +104,10 @@ def write_to_file(x, eps, true_label, robust, uid):
     filename = str(uid) + "_" + str(eps) + ".txt"
     robustness_path = 'maybe_robust' if robust else 'not_robust'
     filename = os.path.join(BASE_DIR_PATH, robustness_path, filename)
-    print("Writing data to file", filename)
+    print("Writing data to file", filename, "...")
     with open(filename, 'w') as f:
         f.write(str(true_label) + "\n")
-        # TODO: write x, one scalar by row
+        # write x, one scalar by row
         for i in range(28):
             for j in range(28):
                 towrite = x[0, 0, i, j].item()
@@ -122,6 +124,7 @@ def read_from_file(filename):
         true_label (int)
         robust (bool)
     """
+    print("Reading data from file", filename, "...")
     robust = None
     if filename.find('maybe_robust'):
         robust = True
@@ -129,7 +132,7 @@ def read_from_file(filename):
         robust = False
     if robust == None:
         raise ValueError("bad file path (should contain 'maybe_robust' or 'not_robust'): " + str(filename))
-    
+
     # keep the exact same code as in `verifier.py`
     with open(filename, 'r') as f:
         lines = [line[:-1] for line in f.readlines()]
@@ -140,8 +143,10 @@ def read_from_file(filename):
     outs = net(inputs)
     pred_label = outs.max(dim=1)[1].item()
 
+    print("Finished reading.")
     return inputs, eps, true_label, robust
 
+# for testing purposes
 def display_image(x, title=None):
     fig, ax = plt.subplots(figsize=(10, 10))
     ax.imshow(x[0, 0, :, :], vmin=0, vmax=1, cmap='gray')
@@ -150,16 +155,21 @@ def display_image(x, title=None):
     ax.set_axis_off()
     plt.show()
 
+
+
 gen = generate_uid()
+# parameters for PGD:
+eps_step = 0.001    # step size in FGSM (see adv.py)
+k = 100             # nb of projections in PGD
+num_restarts = 100  # number of times to try PGD with a different random seed
+
 for idx, (x, true_label) in enumerate(mnist_loader): # batch_size=1 by default
     if idx >= NUM_EXAMPLES_TO_GENERATE:
         break
     eps = random.uniform(0.005, 0.2) # eps ranges between 0.005 and 2
-    eps_step = eps/10 # step size in FGSM (see adv.py)    
     # look for an adversarial example
     robust = True
-    for _ in range(10): # try multiple times (adv.pgd_ includes some randomness)
-        k = 10 # nb of projections in PGD
+    for _ in range(num_restarts): # try multiple times (adv.pgd_ includes some randomness)
         x_adv = pgd_untargeted(net, x, true_label, k, eps, eps_step, device='cpu', clip_min=0, clip_max=1) # candidate adversarial example
         outs = net(x_adv)
         pred_label = outs.max(dim=1)[1].item()
