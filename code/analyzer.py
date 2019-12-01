@@ -36,10 +36,11 @@ class Analyzer:
         learning_rate: see Attributes
         delta: see Attributes
     """
-    def __init__(self, net, inp, eps, true_label, learning_rate=1e-1, delta=1e-9):
+
+    def __init__(self, net, inp, eps, true_label, learning_rate=1e-2, delta=1e-9):
         self.net = net
         for p in net.parameters():
-            p.requires_grad = False # avoid doing useless computations
+            p.requires_grad = False  # avoid doing useless computations
         self.__inp = inp
         self.__eps = eps
         self.true_label = true_label
@@ -50,9 +51,9 @@ class Analyzer:
 
         upper = inp + eps
         lower = inp - eps
-        upper.clamp_(max=1) # clip input_zonotope to the input space
+        upper.clamp_(max=1)  # clip input_zonotope to the input space
         lower.clamp_(min=0)
-        a0 = (upper + lower) / 2 # center of the zonotope
+        a0 = (upper + lower) / 2  # center of the zonotope
         # A must have shape (nb_error_terms, *[shape of input])
         # for the input layer, there is 1 error term for each pixel, so nb_error_terms = inp.numel()
 
@@ -60,8 +61,8 @@ class Analyzer:
         # mask = torch.ones(1, 28, 28, dtype=torch.bool)
         A = torch.zeros(inp.numel(), *inp.shape[1:])
         mask = torch.ones(*inp.shape[1:], dtype=torch.bool)
-        
-        A[:, mask] = torch.diag( ((upper - lower) / 2).reshape(-1) )
+
+        A[:, mask] = torch.diag(((upper - lower) / 2).reshape(-1))
         self.input_zonotope = Zonotope(a0=a0, A=A)
 
         self.lambdas = [] # initialization is done in `analyze()` directly
@@ -117,7 +118,6 @@ class Analyzer:
 
         while True:
             loss = self.loss(self.forward())
-
             # TODO floating point problems?
             if loss == 0:
                 return True

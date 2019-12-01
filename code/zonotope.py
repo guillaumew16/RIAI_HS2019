@@ -5,10 +5,10 @@ from torch.nn.functional import conv2d
 class Zonotope:
     """
     A representation of a zonotope by its center and its error terms coefficients (cf formulas.pdf).
-    
+
     Trivially implements methods `__add__`, `__neg__`, `__sub__`, `__mul__`, `__getitem__`, `sum`,  making e.g Analyzer.loss() concise.
     (These are only convenience stuff, not an attempt of "subclassing Tensors". pyTorch functions are always called on the underlying Tensors `a0` and `A`.)
-    
+
     Attributes:
         A (torch.Tensor): the tensor described in formulas.pdf, with shape [nb_error_terms, *<shape of nn layer>]
         a0 (torch.Tensor): the center of the zonotope, with shape [1, *<shape of nn layer>]
@@ -16,6 +16,7 @@ class Zonotope:
     TODO: it seems wasteful that a0 is of shape [1, *]. In fact a lot of the nn layer operations can be applied to the joint tensor [A, a0]
     (except for the fact the biases should not be added to A).
     """
+
     def __init__(self, A, a0):
         self.a0 = a0
         self.A = A
@@ -30,7 +31,7 @@ class Zonotope:
 
     def reset(self):
         """Returns a fresh Zonotope with the same data but no bindings to any output tensor"""
-        return Zonotope(self.A.clone().detach(), self.a0.clone().detach()) # cf doc of torch.Tensor.new_tensor()
+        return Zonotope(self.A.clone().detach(), self.a0.clone().detach())  # cf doc of torch.Tensor.new_tensor()
 
     # Convenience methods
     # ~~~~~~~~~~~~~~~~~~~
@@ -109,16 +110,17 @@ class Zonotope:
         u = self.upper()
 
         # ignore variables don't require a lambda for ReLU transformation
-        intersection_map = ((l < 0) * (u > 0))[0] # entries s.t l < 0 < u. (implies u-l > 0 so division safe)
+        intersection_map = ((l < 0) * (u > 0))[0]  # entries s.t l < 0 < u. (implies u-l > 0 so division safe)
 
         lambda_layer = torch.zeros(self.a0.shape)
-        lambda_layer[:, intersection_map] = u[:, intersection_map] / (u[:, intersection_map] - l[:, intersection_map]) # equivalently, replace "[:,*]" by "[0,*]"
+        lambda_layer[:, intersection_map] = u[:, intersection_map] / (
+                    u[:, intersection_map] - l[:, intersection_map])  # equivalently, replace "[:,*]" by "[0,*]"
         return lambda_layer
 
     def relu(self, lambdas=None):
         """Apply a convolution layer to this zonotope.
         Args:
-            lambdas (torch.Tensor || None): the lambdas to use, of shape [1, <*shape of nn layer>]. 
+            lambdas (torch.Tensor || None): the lambdas to use, of shape [1, <*shape of nn layer>].
                 If None, do the vanilla DeepPoly transformation.
         """
         l = self.lower()
@@ -141,7 +143,7 @@ class Zonotope:
 
         breaking_point = u[:, intersection_map] / (u[:, intersection_map] - l[:, intersection_map])
         if lambdas is None:
-            mu[:, intersection_map] = l[:, intersection_map] * breaking_point / 2
+            mu[:, intersection_map] = - l[:, intersection_map] * breaking_point / 2
 
             a0[:, intersection_map] = a0[:, intersection_map] * breaking_point + mu[:, intersection_map]
             A[:self.A.shape[0], intersection_map] = self.A[:, intersection_map] * breaking_point
