@@ -1,11 +1,13 @@
 .vscode/
 .idea/
-code/__pycache__/
+**/__pycache__/
 
 # latex stuff
 formulas/*
 !formulas/formulas.pdf
 !formulas/formulas.tex
+
+mnist_data/
 
 test_cases_generated/conv*/not_robust/*
 test_cases_generated/conv*/maybe_robust/*

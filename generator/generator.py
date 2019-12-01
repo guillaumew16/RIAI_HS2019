@@ -1,8 +1,15 @@
-import torch
-from torchvision import datasets, transforms
 import argparse
 import os
 import random
+
+import torch
+from torchvision import datasets, transforms
+import matplotlib.pyplot as plt
+
+import sys
+sys.path.insert(1, '../code') # little hack. https://stackoverflow.com/questions/4383571/importing-files-from-different-folder
+from networks import FullyConnected, Conv
+
 from adv import pgd_untargeted
 
 DEVICE = 'cpu'
@@ -14,9 +21,18 @@ parser.add_argument('--net',
                     choices=['fc1', 'fc2', 'fc3', 'fc4', 'fc5', 'conv1', 'conv2', 'conv3', 'conv4', 'conv5'],
                     required=True,
                     help='Neural network to generate test cases for.')
+parser.add_argument('--num',
+                    type=int,
+                    default=1,
+                    help='Number of new test cases to generate. (default: 1)')
+parser.add_argument('--sc', 
+                    action='store_true',
+                    help="Display and sanity-check that each file produced is correct.")
 args = parser.parse_args()
 
 BASE_DIR_PATH = '../test_cases_generated/' + args.net
+NUM_EXAMPLES_TO_GENERATE = args.num
+DO_SANITY_CHECK = args.sc
 
 if args.net == 'fc1':
     net = FullyConnected(DEVICE, INPUT_SIZE, [100, 10]).to(DEVICE)
@@ -47,17 +63,17 @@ DATASET_PATH = '../mnist_data'
 mnist_dataset = datasets.MNIST(DATASET_PATH, train=True, download=True, transform=transforms.Compose(
     [transforms.ToTensor()]
 ))
-mnist_loader = torch.utils.data.DataLoader(dataset, shuffle=True)
+mnist_loader = torch.utils.data.DataLoader(mnist_dataset, shuffle=True)
 
 def generate_uid():
     uids = []
     with os.scandir(BASE_DIR_PATH) as it:
         for f_name in it:
-            under_score_pos = f_name.rfind('_')
+            under_score_pos = f_name.name.rfind('_')
             if under_score_pos == -1:
                 raise Warning(BASE_DIR_PATH+" contains a file with bad filename: "+f_name+" (filename should contain '_')")
                 continue
-            uids.append( f_name[0:under_score_pos] )
+            uids.append( f_name.name[0:under_score_pos] )
     idx = 0
     while True:
         uid = "img" + str(idx) # candidate uid
@@ -65,26 +81,56 @@ def generate_uid():
             yield uid
         idx += 1
 
-def write_to_file(x, eps, true_label, robust):
-    # x: torch.Tensor
-    filename = generate_uid() + "_" + str(eps) + ".txt"
+def write_to_file(x, eps, true_label, robust, uid):
+    """Writes the test case to a file. The auto-generated filename looks like
+        BASE_DIR_PATH/<robustness>/img<uid>_<eps>.txt
+    e.g:
+        test_cases_generated/fc1/maybe_robust/img0_0.128011.txt
+
+    Args:
+        x (torch.Tensor): the MNIST image to verify, of shape [1, 1, 28, 28]
+        eps (float): the epsilon
+        true_label (int): the true label (between 0 and 9)
+        robust (bool): True if PGD didn't find an adversarial example around x, False otherwise (but there may still be one)
+        uid (int): a uid to prefix the filename with, for convenience
+
+    Returns:
+        filename (str): the auto-generated filename used
+    """
+    if list(x.shape) != [1, 1, 28, 28]:
+        raise ValueError("bad tensor shape: expected x of shape [1, 1, 28, 28], got "+str(x.shape))
+    filename = str(uid) + "_" + str(eps) + ".txt"
     robustness_path = 'maybe_robust' if robust else 'not_robust'
     filename = os.path.join(BASE_DIR_PATH, robustness_path, filename)
     print("Writing data to file", filename)
     with open(filename, 'w') as f:
         f.write(str(true_label) + "\n")
         # TODO: write x, one scalar by row
+        for i in range(28):
+            for j in range(28):
+                towrite = x[0, 0, i, j].item()
+                f.write(str(towrite) + "\n")
     print("Finished writing.")
+    return filename
 
 # for testing purposes (check that write_to_file then read_from_file returns the original tensor)
 def read_from_file(filename):
+    """Takes a file and returns the datapoint represented.
+    Returns:
+        x (torch.Tensor): tensor of shape [1, 1, 28, 28]
+        eps (float)
+        true_label (int)
+        robust (bool)
+    """
     robust = None
     if filename.find('maybe_robust'):
         robust = True
-    else if filename.find('not_robust'):
+    elif filename.find('not_robust'):
         robust = False
     if robust == None:
-        raise ValueError("bad filename: " + str(filename))
+        raise ValueError("bad file path (should contain 'maybe_robust' or 'not_robust'): " + str(filename))
+    
+    # keep the exact same code as in `verifier.py`
     with open(filename, 'r') as f:
         lines = [line[:-1] for line in f.readlines()]
         true_label = int(lines[0])
@@ -93,11 +139,21 @@ def read_from_file(filename):
     inputs = torch.FloatTensor(pixel_values).view(1, 1, INPUT_SIZE, INPUT_SIZE).to(DEVICE)
     outs = net(inputs)
     pred_label = outs.max(dim=1)[1].item()
+
     return inputs, eps, true_label, robust
 
+def display_image(x, title=None):
+    fig, ax = plt.subplots(figsize=(10, 10))
+    ax.imshow(x[0, 0, :, :], vmin=0, vmax=1, cmap='gray')
+    if title is not None:
+        ax.set_title(title)
+    ax.set_axis_off()
+    plt.show()
 
-
-for idx, (x, true_label) in enumerate(train_loader): # batch_size=1 by default
+gen = generate_uid()
+for idx, (x, true_label) in enumerate(mnist_loader): # batch_size=1 by default
+    if idx >= NUM_EXAMPLES_TO_GENERATE:
+        break
     eps = random.uniform(0.005, 0.2) # eps ranges between 0.005 and 2
     eps_step = eps/10 # step size in FGSM (see adv.py)    
     # look for an adversarial example
@@ -110,6 +166,15 @@ for idx, (x, true_label) in enumerate(train_loader): # batch_size=1 by default
         if pred_label != true_label:
             robust = False
             break
-    write_to_file(x, eps, true_label, robust)
+    filename = write_to_file(x, eps, true_label.item(), robust, next(gen))
 
+    if DO_SANITY_CHECK:
+        display_image(x, title="original image (x)")
+        x_read, _, _, _ = read_from_file(filename)
+        print(x.shape)
+        print(x_read.shape)
+        display_image(x_read, title="image written (x_read)")
+        print("filename:", filename)
+        print("max difference between `x` and `x_read`:", (x-x_read).max() )
+        print()
 
