@@ -1,6 +1,7 @@
 #!/bin/bash
 
 if [[ $# -ne 1 ]]; then
+	echo "Usage: generate <num> to generate num test cases for each network. Running with num=1..."
 	num=1
 else
 	num=$1
@@ -10,7 +11,9 @@ fi
 
 for net in fc1 fc2 fc3 fc4 fc5 conv1 conv2 conv3 conv4 conv5
 do
+	mkdir -p ../test_cases_generated/${net}/maybe_robust # create directories (pass silently if they already exist)
+	mkdir -p ../test_cases_generated/${net}/not_robust
 	echo "Generating ${num} test cases for network ${net}..."
 	python generator.py --net ${net} --num ${num}
-	echo "\n"
+	echo
 done

@@ -69,11 +69,18 @@ mnist_loader = torch.utils.data.DataLoader(mnist_dataset, shuffle=True)
 
 def generate_uid():
     uids = []
-    with os.scandir(BASE_DIR_PATH) as it:
+    with os.scandir(BASE_DIR_PATH+"/maybe_robust") as it:
         for f_name in it:
             under_score_pos = f_name.name.rfind('_')
             if under_score_pos == -1:
-                raise Warning(BASE_DIR_PATH+" contains a file with bad filename: "+f_name+" (filename should contain '_')")
+                raise Warning(BASE_DIR_PATH+"/maybe_robust contains a file with bad filename: "+f_name+" (filename should contain '_')")
+                continue
+            uids.append( f_name.name[0:under_score_pos] )
+    with os.scandir(BASE_DIR_PATH+"/not_robust") as it:
+        for f_name in it:
+            under_score_pos = f_name.name.rfind('_')
+            if under_score_pos == -1:
+                raise Warning(BASE_DIR_PATH+"/not_robust contains a file with bad filename: "+f_name+" (filename should contain '_')")
                 continue
             uids.append( f_name.name[0:under_score_pos] )
     idx = 0
@@ -159,14 +166,15 @@ def display_image(x, title=None):
 
 gen = generate_uid()
 # parameters for PGD:
-eps_step = 0.001    # step size in FGSM (see adv.py)
-k = 100             # nb of projections in PGD
-num_restarts = 100  # number of times to try PGD with a different random seed
+eps_step_ratio = 0.01   # eps_step / eps, where eps_step is the step size in FGSM (see adv.py)
+k = 1000                # nb of projections in PGD
+num_restarts = 100      # number of times to try PGD with a different random seed
 
 for idx, (x, true_label) in enumerate(mnist_loader): # batch_size=1 by default
     if idx >= NUM_EXAMPLES_TO_GENERATE:
         break
-    eps = random.uniform(0.005, 0.2) # eps ranges between 0.005 and 2
+    eps = random.uniform(0.005, 0.2) # eps ranges between 0.005 and 0.2
+    eps_step = eps * eps_step_ratio
     # look for an adversarial example
     robust = True
     for _ in range(num_restarts): # try multiple times (adv.pgd_ includes some randomness)
