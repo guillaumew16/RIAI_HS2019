@@ -13,7 +13,6 @@ class Zonotope:
         A (torch.Tensor): the tensor described in formulas.pdf, with shape [nb_error_terms, *<shape of nn layer>]
         a0 (torch.Tensor): the center of the zonotope, with shape [1, *<shape of nn layer>]
 
-    TODO: check the above statement about the shape of A and a0
     TODO: it seems wasteful that a0 is of shape [1, *]. In fact a lot of the nn layer operations can be applied to the joint tensor [A, a0]
     (except for the fact the biases should not be added to A).
     """
@@ -48,13 +47,17 @@ class Zonotope:
         return Zonotope(self.A * other, self.a0 * other)
 
     def __getitem__(self, item):
-        """For a flat zonotope (i.e living in a 'flattened' space with shape (n,) ), returns the zonotope of the `item`-th variable
-        TODO: check whether it does only work for a flat zonotope"""
+        """For a flat zonotope (i.e living in a 'flattened' space with shape (n,) ), returns the zonotope of the `item`-th variable."""
+        if len(self.a0.shape) > 2:
+            raise Warning("Called Zonotope.__getitem__ on an instance with a0.shape=" + str(a0.shape)
+                + ". It should only be called on instances living in 'flattened spaces', i.e with a0.shape of the form [1, n].")
         return Zonotope(self.A[:, item:item + 1], self.a0[:, item:item + 1])
 
     def sum(self):
-        """For a flat zonotope (i.e living in a 'flattened' space with shape (n,) ), returns the zonotope of the sum of all variables
-        TODO: check whether it does only work for a flat zonotope"""
+        """For a flat zonotope (i.e living in a 'flattened' space with shape (n,) ), returns the zonotope of the sum of all variables."""
+        if len(self.a0.shape) > 2:
+            raise Warning("Called Zonotope.__getitem__ on an instance with a0.shape=" + str(a0.shape)
+                + ". It should only be called on instances living in 'flattened spaces', i.e with a0.shape of the form [1, n].")
         return Zonotope(self.A.sum(1, keepdim=True), self.a0.sum(1, keepdim=True))
 
     def lower(self):

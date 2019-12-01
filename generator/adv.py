@@ -37,11 +37,10 @@ def pgd_(model, x, target, k, eps, eps_step, targeted=True, device='cpu', clip_m
     x_max = x + eps
     
     # generate a random point in the +-eps box around x
-    # we don't necessarily want to do this, since starting from x itself would also work. In fact these two lines were present in the solution of hw4 but not in hw8.
-    # but in our case it's what we want (cf generator.py)
-    # TODO: now I have doubts about whether these two lines really do generate a random point. x seems to be competely overwritten.
-    x = torch.rand_like(x)
-    x = (x*2*eps - eps)
+    # note that starting from x itself would also work, so one could implement a deterministic version of PGD
+    # but in our case it's really what we want (cf generator.py: we want randomness)
+    change = (2*torch.rand_like(x) - torch.ones_like(x)) * eps # a random tensor in [-eps, eps]
+    x = x + change
 
     for i in range(k):
         # FGSM step
