@@ -114,41 +114,69 @@ class Zonotope:
             lambdas (torch.Tensor || None): the lambdas to use, of shape [1, <*shape of nn layer>].
                 If None, do the vanilla DeepPoly transformation.
         """
+        # compute lower and upper bound of the layer
         l = self.lower()
         u = self.upper()
 
+        # compute boolean map to find which elements of the input have a negative lower bound and a positive upper bound
         lower_map = (u <= 0)[0]
         upper_map = (l >= 0)[0]
         intersection_map = ((l < 0) * (u > 0))[0]
 
+        # We need to add a new epslon for each element that must be approximated by the relu transformation.
+        # new_eps_size is this number so the new shape of A is self.A.shape[0] + new_eps_size in the first dimension
+        # and the same as prevoius A in the other dimensions.
         new_eps_size = torch.nonzero(intersection_map).size(0)
         new_A_shape = (self.A.shape[0] + new_eps_size, *self.A.shape[1:])
         A = torch.zeros(new_A_shape)
         a0 = self.a0.clone()
         mu = torch.zeros(a0.shape)
 
+        # When the upper bound is lower than zero, we know that the output is always 0,
+        # so both the center and the coefficients are zero.
+        # The coefficients are already initialized as 0 so we don't need to do it again.
         a0[:, lower_map] = 0
-        A[:, lower_map] = 0
 
+        # When the input is always positive, the output of this relu is the same as the input,
+        # the center is already initialized this way so we only need to set the coefficients.
         A[:self.A.shape[0], upper_map] = self.A[:, upper_map]
 
+        # From now on whe compute the relu approximation for the point that have a negative lower bound
+        # and a positive upper bound. So we will use the intersection map to access the tensors only on these points.
+
+        # Compute the coefficient of the lines that intersect both (l, 0) and (u, u) for each element.
+        # When lambda is greater than this value the only line that we can use is the one passing through (l, 0)
+        # otherwise we can only use the one passing through (u, u).
         breaking_point = u[:, intersection_map] / (u[:, intersection_map] - l[:, intersection_map])
+
+        # y = lambda*x + mu + mu*eps_new where mu = d / 2 and d is the translation of the line that approximate
+        # the upper bound of the relu transformation.
+        # So a0 = a0*lambda + mu and A = lambda*A for all the previous epslons and A = mu for the new epslons.
+
+        # If lambda is None we use the vanilla DeepPoly transformation, which means lambda = breaking_point.
         if lambdas is None:
             mu[:, intersection_map] = - l[:, intersection_map] * breaking_point / 2
 
+            # Compute new a0 and A from x.
             a0[:, intersection_map] = a0[:, intersection_map] * breaking_point + mu[:, intersection_map]
             A[:self.A.shape[0], intersection_map] = self.A[:, intersection_map] * breaking_point
         else:
+            # Boolean map that decide when to use the (l, 0) point.
             use_l_map = lambdas[:, intersection_map] >= breaking_point
 
+            # Compute d as described before and mu = d / 2
             tmp = torch.zeros(mu[:, intersection_map].shape)
             tmp[use_l_map] = - l[:, intersection_map][use_l_map] * lambdas[:, intersection_map][use_l_map]
             tmp[~ use_l_map] = u[:, intersection_map][~ use_l_map] * (1 - lambdas[:, intersection_map][~ use_l_map])
 
             mu[:, intersection_map] = tmp / 2
 
+            # Compute new a0 and A from x.
             a0[:, intersection_map] = a0[:, intersection_map] * lambdas[:, intersection_map] + mu[:, intersection_map]
             A[:self.A.shape[0], intersection_map] = self.A[:, intersection_map] * lambdas[:, intersection_map]
 
+        # Finally compute values for the coefficients of the new epsilons.
+        # Because each epsilon has one non zero coefficient and 0 for all other elements
+        # this line create a diagonal matrix to set the values of A.
         A[self.A.shape[0]:, intersection_map] = torch.diag((mu[:, intersection_map]).reshape(-1))
         return Zonotope(A, a0)
