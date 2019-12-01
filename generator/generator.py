@@ -147,8 +147,6 @@ def read_from_file(filename):
         pixel_values = [float(line) for line in lines[1:]]
         eps = float(filename[:-4].split('/')[-1].split('_')[-1])
     inputs = torch.FloatTensor(pixel_values).view(1, 1, INPUT_SIZE, INPUT_SIZE).to(DEVICE)
-    outs = net(inputs)
-    pred_label = outs.max(dim=1)[1].item()
 
     print("Finished reading.")
     return inputs, eps, true_label, robust
@@ -175,6 +173,16 @@ for idx, (x, true_label) in enumerate(mnist_loader): # batch_size=1 by default
         break
     eps = random.uniform(0.005, 0.2) # eps ranges between 0.005 and 0.2
     eps_step = eps * eps_step_ratio
+
+    # make sure that the network correctly labels x, else drop this image (don't produce it as test case)
+    # indeed, if we kept such test cases, they would immediately trigger an assert in verifier.py anyway
+    # (this means that less than NUM_EXAMPLES_TO_GENERATE examples will actually be generated, but whatever)
+    outs = net(x)
+    pred_label = outs.max(dim=1)[1].item()
+    if pred_label != true_label:
+        print("The image x is incorrectly labeled by net. Dropping this case and moving on...")
+        continue
+
     # look for an adversarial example
     robust = True
     for _ in range(num_restarts): # try multiple times (adv.pgd_ includes some randomness)

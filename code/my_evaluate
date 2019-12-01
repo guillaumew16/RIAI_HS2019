@@ -4,17 +4,17 @@
 
 for net in fc1 fc2 fc3 fc4 fc5 conv1 conv2 conv3 conv4 conv5
 do
-	echo Evaluating network ${net}...
-	echo \tOn \"maybe robust\" test cases (should \"maybe\" output \'verified\')
-	for spec in `ls ../test_cases/${net}/maybe_robust`
+	echo "Evaluating network ${net}..."
+	echo -e "\tOn \"maybe robust\" test cases (should \"maybe\" output 'verified')"
+	for spec in `ls ../test_cases_generated/${net}/maybe_robust`
 	do
-		echo \t\t${spec}: 
-		python verifier.py --net ${net} --spec ../test_cases/${net}/${spec}
+		echo -ne "\t\t${spec}: \t"
+		python verifier.py --net ${net} --spec ../test_cases_generated/${net}/maybe_robust/${spec}
 	done
-	echo \tOn non-robust test cases (should output \'not verified\')
-	for spec in `ls ../test_cases/${net}/not_robust`
+	echo -e "\tOn non-robust test cases (should output 'not verified')"
+	for spec in `ls ../test_cases_generated/${net}/not_robust`
 	do
-		echo \t\t${spec}: 
-		python verifier.py --net ${net} --spec ../test_cases/${net}/${spec}
+		echo -ne "\t\t${spec}: \t"
+		python verifier.py --net ${net} --spec ../test_cases_generated/${net}/not_robust/${spec}
 	done
 done
