@@ -1,8 +1,9 @@
 .vscode/
 .idea/
 code/__pycache__/
-
+# no generator in master branch
+generator/
 # latex stuff
-formulas/*
+formulas/
 !formulas/formulas.pdf
 !formulas/formulas.tex
