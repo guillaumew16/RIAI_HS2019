@@ -23,6 +23,11 @@ class Zonotope:
     def __str__(self):
         return "Zonotope center: {}, epsilon coefficients: {}".format(self.a0, self.A)
 
+    # TODO: test this, maybe change this to a0.shape[1:]...
+    @property
+    def shape(self):
+        return a0.shape
+
     def reset(self):
         """Returns a fresh Zonotope with the same data but no bindings to any output tensor"""
         return Zonotope(self.A.clone().detach(), self.a0.clone().detach()) # cf doc of torch.Tensor.new_tensor()

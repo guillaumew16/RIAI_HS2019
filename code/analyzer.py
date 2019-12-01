@@ -18,13 +18,13 @@ class Analyzer:
         net (networks.FullyConnected || networks.Conv): the network to be analyzed (first layer: Normalization)
         true_label (int): the true label of the input point
         input_zonotope (Zonotope): the zonotope to analyze (derived from inp and eps in the __init__)
-        lambdas (list of torch.Tensor): the list of the analyzer's parameters lambdas (one `lambda_layer` tensor for each ReLU layer)
-            each element `lambda_layer` is a Tensor of shape [1, <*shape of nn layer>] (same as Zonotope.a0)
+        lambdas (list of torch.Tensor): the list of the analyzer's parameters lambdas (one `lambda_layer` tensor for each ReLU layer).
+            Each element `lambda_layer` is a Tensor of shape [1, <*shape of nn layer>] (same as Zonotope.a0).
+            `lambdas` is NOT initialized in __init__, but in `analyze()`.
         learning_rate (float, optional): the learning rate for gradient descent in `analyze()`
         delta (float, optional): the tolerance threshold for gradient descent in `analyze()`
 
         __relu_counter (int): during .forward(), counts ReLU layers to keep track of where we are in the net. kept for convenience
-        __forward (Zonotope || None): a hack to avoid doing the same `forward()` run twice (once to initialize `self.lambdas`, once as part of `analyze()`)
         __inp (torch.Tensor): a copy of the input point inp. kept for convenience
         __eps (float): a copy of the queried eps. kept for convenience
 
@@ -64,21 +64,7 @@ class Analyzer:
         A[:, mask] = torch.diag( ((upper - lower) / 2).reshape(-1) )
         self.input_zonotope = Zonotope(a0=a0, A=A)
 
-        self.lambdas = []
-        # the lambdas are initialized to what the vanilla DeepPoly would do
-        init_zonotope = self.input_zonotope.reset()
-        for layer in self.net.layers:
-            if isinstance(layer, nn.ReLU):
-                with torch.no_grad():
-                    lam = init_zonotope.compute_lambda_breaking_point()
-                lam.requires_grad_()
-                self.lambdas.append(lam)
-            init_zonotope = self.forward_step(init_zonotope, layer)
-        self.__forward = init_zonotope
-        """
-        for lambda_layer in self.lambdas:
-            lambda_layer.requires_grad_()
-        """
+        self.lambdas = [] # initialization is done in `analyze()` directly
 
     def loss(self, output):
         """The zonotope Z=`output` is at the last layer, so elements x in Z correspond to logits.
@@ -108,10 +94,6 @@ class Analyzer:
 
     def forward(self):
         """Run the network transformations on `self.input_zonotope`, using parameters `self.lambdas` for ReLU layers."""
-        if self.__forward is not None:
-            result = self.__forward
-            self.__forward = None
-            return result
         self.__relu_counter = 0
         out = self.input_zonotope.reset()
         for layer in self.net.layers:
@@ -121,14 +103,24 @@ class Analyzer:
     def analyze(self):
         # TODO: use an optimizer from pyTorch or SciPy instead of doing gradient descent ourselves
         """Run gradient descent on `self.lambdas` to minimize `self.loss(self.foward())`."""
-        result = False
-        while not result:
+
+        # bind self.lambdas and self.zonotopes as variables of the net
+        # the lambdas are initialized to what the vanilla DeepPoly would do
+        init_zonotope = self.input_zonotope.reset()
+        for layer in self.net.layers:
+            if isinstance(layer, nn.ReLU):
+                with torch.no_grad():
+                    lambda_layer = init_zonotope.compute_lambda_breaking_point()
+                lambda_layer.requires_grad_()
+                self.lambdas.append(lam)
+            init_zonotope = self.forward_step(init_zonotope, layer)
+
+        while True:
             loss = self.loss(self.forward())
 
             # TODO floating point problems?
             if loss == 0:
-                result = True
-                break
+                return True
             self.net.zero_grad()
             loss.backward()
             max_change = 0
@@ -143,4 +135,3 @@ class Analyzer:
                 # lambda_layer.grad.zero_()
             if max_change < self.delta:
                 break
-        return result
