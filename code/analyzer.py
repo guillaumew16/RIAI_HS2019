@@ -20,11 +20,6 @@ class Analyzer:
         znet (zNet): the network with zonotope variables and parameters lambda, s.t self.__net is self.znet "in the concrete"
         input_zonotope (Zonotope): the zonotope to analyze (derived from inp and eps in the __init__)
         true_label (int): the true label of the input point
-
-    TODO: these two attributes will be removed once we use pytorch optimizer instead of home-made gradient descent
-        learning_rate (float): the learning rate for gradient descent in `analyze()`
-        delta (float): the tolerance threshold for gradient descent in `analyze()`
-
         __net (networks.FullyConnected || networks.Conv): the network to be analyzed (first layer: Normalization). kept for convenience
         __inp (torch.Tensor): a copy of the input point inp. kept for convenience
         __eps (float): a copy of the queried eps. kept for convenience
@@ -34,13 +29,9 @@ class Analyzer:
         inp (torch.Tensor): input point around which to analyze, of shape torch.Size([1, 1, 28, 28])
         eps (float): epsilon, > 0, eps.shape = inp.shape
         true_label (int): see Attributes
-
-    TODO: these two attributes will be removed once we use pytorch optimizer instead of home-made gradient descent
-        learning_rate (float, optional): see Attributes
-        delta (float, optional): see Attributes
     """
 
-    def __init__(self, net, inp, eps, true_label, learning_rate=1e-2, delta=1e-9):
+    def __init__(self, net, inp, eps, true_label):
         self.__net = net
         for p in net.parameters():
             p.requires_grad = False  # avoid doing useless computations
@@ -68,7 +59,7 @@ class Analyzer:
         A[:, mask] = torch.diag(((upper - lower) / 2).reshape(-1))
         self.input_zonotope = Zonotope(A=A, a0=a0)
 
-    def loss(self, output_zonotope): # TODO: (globally speaking,) using type annotations would probably reduce source code verbosity...
+    def loss(self, output_zonotope):
         """Elements x in the last (concrete) layer correspond to logits.
         Args:
             output_zonotope (Zonotope)

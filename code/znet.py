@@ -75,7 +75,7 @@ class zNet(nn.Module):
         self.relu_ind = []
         for idx, zlayer in enumerate(self.zlayers):
             if isinstance(zlayer, zm.zReLU):
-                self.lambdas.append(zlayer.lambda_layer) # captures the nn.Parameters (in python, "Object references are passed by value") # TODO: check that this is the case
+                self.lambdas.append(zlayer.lambda_layer) # captures the nn.Parameters (in python, "Object references are passed by value")
                 self.relu_ind.append(idx)
 
     def __str__(self):
@@ -90,11 +90,10 @@ class zNet(nn.Module):
             inp_zono (Zonotope): the input zonotope
             zlayer (zm._zModule): the layer to apply
         """
-        # TODO: (globally speaking,) remove "isinstance" calls in production
+        # DEBUG
         if not isinstance(zlayer, zm._zModule):
             raise ValueError("expected a zm._zModule")
         if verbose:
-            # print some information about zonotope's shape, layer's shape, what type of layer this is...
             print("\tapplying zNet.forward_step() at layer: {}\n\ton zonotope: {}".format(zlayer, zonotope))
         return zlayer(zonotope)
 
@@ -104,7 +103,7 @@ class zNet(nn.Module):
             input_zonotope (Zonotope): the zonotope, of shape A.shape=[784, 1, 28, 28]
         """
         if verbose: print("entering zNet.forward()...")
-        zonotope = input_zonotope.reset() # avoid capturing, just in case
+        zonotope = input_zonotope.reset() # avoid capturing, just in case. (DEBUG)
         self.zonotopes[0] = zonotope
         for idx, zlayer in enumerate(self.zlayers):
             if verbose:

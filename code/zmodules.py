@@ -4,6 +4,8 @@ import torch.nn as nn
 from zonotope import Zonotope
 from networks import Normalization
 
+# TODO: maybe move code from zonotope.py over here, instead of calling Zonotope methods (seems a bit more natural -- though both work)
+
 class _zModule(nn.Module):
     """
     Attributes:
@@ -40,7 +42,6 @@ class zReLU(_zModule):
     def forward(self, zonotope):
         if self.__uninitialized:
             self.initialize_parameters(zonotope)
-        # TODO: move code over here
         return zonotope.relu(self.lambda_layer)
 
     def initialize_parameters(self, zonotope):
@@ -125,6 +126,8 @@ class zConv2d(_zModule):
             conv_layer (nn.Conv2d): the corresponding layer in the concrete
         """
         super().__init__()
+        self.__out_dim = None
+
         self.weight = concrete_layer.weight.detach()
         self.bias   = concrete_layer.bias.detach()
         self.stride = concrete_layer.stride.detach()
@@ -135,12 +138,13 @@ class zConv2d(_zModule):
         self.__concrete_layer = concrete_layer # TODO: once possible, remove this. # TODO: detach concrete_layer's parameters...
 
     def out_dim(self):
-        # TODO: maybe try to find a better way to do this... On the other hand this is not supposed be called very often anyway
+        if self.__out_dim is not None:
+            return out_dim
+        # TODO: maybe try to find a better way to do this... On the other hand multiplying by 0 is probably optimized out by pyTorch
         dummy_input = torch.zeros(1, *self.in_dim)
-        # dummy_output = self.forward(Zonotope(A=dummy_input, a0=dummy_input))
-        # return dummy_output.dim
-        dummy_output = __concrete_layer(dummy_input) # since it's there...
-        return dummy_output.shape[1:]
+        dummy_output = self.forward(Zonotope(A=dummy_input, a0=dummy_input))
+        self.__out_dim = dummy_output.dim
+        return self.__out_dim
 
     def forward(self, zonotope):
         return zonotope.convolution(self.__concrete_layer)
