@@ -18,10 +18,6 @@ class Analyzer:
         net (networks.FullyConnected || networks.Conv): the network to be analyzed (first layer: Normalization)
         true_label (int): the true label of the input point
         input_zonotope (Zonotope): the zonotope to analyze (derived from inp and eps in the __init__)
-        zonotopes (list of Zonotope): the list of the zonotope regions (one zonotope for each layer of net).
-            Each element is a Zonotope of shape [1, <*shape of nn layer>].
-            `zonotopes` is NOT initialized in `__init__`, but in `analyze()`.
-            Although not necessary, it's nice to keep a reference to the intermediary results of the transformations.
         lambdas (list of torch.Tensor): the list of the analyzer's parameters lambdas (one `lambda_layer` tensor for each ReLU layer).
             Each element `lambda_layer` is a Tensor of shape [1, <*shape of nn layer>] (same as Zonotope.a0).
             `lambdas` is NOT initialized in `__init__`, but in `analyze()`.
@@ -39,6 +35,8 @@ class Analyzer:
         inp (torch.Tensor): input point around which to analyze, of shape torch.Size([1, 1, 28, 28])
         eps (float): epsilon, > 0, eps.shape = inp.shape
         true_label (int): see Attributes
+
+    TODO: these two attributes will be removed once we use pytorch optimizer instead of home-made gradient descent
         learning_rate (float, optional): see Attributes
         delta (float, optional): see Attributes
     """
@@ -53,7 +51,6 @@ class Analyzer:
         self.learning_rate = learning_rate
         self.delta = delta
         self.__relu_counter = 0
-        self.__forward = None
 
         upper = inp + eps
         lower = inp - eps
@@ -81,7 +78,8 @@ class Analyzer:
         Returns the sum of violations (cf formulas.pdf):
             max_{x(=logit) in output_zonotope} sum_{label l s.t logit[l] > logit[true_label]} (logit[l] - logit[true_label])
         """
-        # TODO: can use https://github.com/szagoruyko/pytorchviz to visualize loss() too.
+        # TODO: we can use https://github.com/szagoruyko/pytorchviz to visualize loss() too.
+        assert out_zonotope.dim == torch.Size(10)
         return (out_zonotope - out_zonotope[self.true_label]).relu().sum().upper()
 
     def analyze(self):

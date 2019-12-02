@@ -26,6 +26,7 @@ class Zonotope:
 
     @property
     def dim(self):
+        """Dimension of the ambiant space"""
         return A.shape[1:]
 
     @property

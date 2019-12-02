@@ -34,18 +34,37 @@ class zNet(nn.Module):
             p.requires_grad = False  # avoid doing useless computations
         
         self.zlayers = []
+        out_dim = torch.Size(1, 28, 28) # the in/out_dim of the **previous** layer
         for layer in net.layers:
             if isinstance(layer, nn.ReLU):
-                zlayer = zm.zReLU() # TODO: determine in_dim
+                zlayer = zm.zReLU(in_dim=out_dim) # needs to set in_dim right away.
             elif isinstance(layer, nn.Linear):
                 zlayer = zm.zLinear(layer.weight, layer.bias)
             elif isinstance(layer, nn.Conv2d):
                 zlayer = zm.zConv2d(layer)
+                # zlayer = zm.zConv2d(
+                #     weight=layer.weight, 
+                #     bias=layer.bias,
+                #     stride=layer.stride,
+                #     padding=layer.padding,
+                #     dilation=layer.dilation,
+                #     groups=layer.groups
+                # )
             elif isinstance(layer, Normalization):
                 zlayer = zm.Normalization(layer.mean, layer.sigma)
             elif isinstance(layer, nn.Flatten):
                 zlayer = zm.zFlatten()
+            zlayer.in_dim = out_dim
+            out_dim = zlayer.out_dim()
             self.zlayers.append(zlayer)
+
+        # sanity-check the dimensions (i.e check that pyTorch doesn't do black-magic-broadcasting that ends up being compatible but not what we want)
+        # Rk: this is not necessary, it's just a cool upside of the fact that we need to store in_dim for each zlayer
+        out_dim = torch.Size(1, 28, 28) # the out_dim of the **previous** layer
+        for zlayer in enumerate(self.zlayers):
+            assert zlayer.in_dim == out_dim
+            out_dim = zlayer.out_dim
+        assert out_dim == torch.Size(10)
 
         self.zonotopes = [None] * (len(self.zlayers) + 1)
 
@@ -53,7 +72,7 @@ class zNet(nn.Module):
         self.relu_ind = []
         for idx, zlayer in enumerate(self.zlayers):
             if isinstance(zlayer, zmodules.zReLU): # where zmodules is the name of the file containing the zlayers objects
-                self.lambdas.append(zlayer.parameters())
+                self.lambdas.append(zlayer.parameters()) # captures the Parameters (in python, "Object references are passed by value") # TODO: check that this is the case
                 self.relu_ind.append(idx)
 
     def forward_step(self, zonotope, zlayer, verbose=False):
@@ -83,12 +102,15 @@ class zNet(nn.Module):
         zonotope = input_zonotope.reset() # avoid capturing, just in case
         self.zonotopes[0] = zonotope
         for idx, zlayer in enumerate(self.zlayers):
+            if verbose:
+                print("layer #", idx)
             self.zonotopes[idx+1] = self.forward_step(self.zonotopes[idx], zlayer, verbose=verbose)
         return self.zonotopes[-1]
 
     def make_dot(self):
-        # TODO: use https://github.com/szagoruyko/pytorchviz to visualize the Znet
+        # use https://github.com/szagoruyko/pytorchviz to visualize the Znet
         import torchviz # cannot run this in production (pytorchviz is not in requirements.txt)
         inp_zono = torch.zeros([784, 1, 28, 28])
         # inp_zono = torch.zeros( self.zlayers[0].in_dim )
-        torchviz.make_dot()
+        out_zono = self.forward(inp_zono)
+        torchviz.make_dot(out_zono)
