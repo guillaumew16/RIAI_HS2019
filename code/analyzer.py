@@ -163,7 +163,6 @@ class Analyzer:
             for p in self.__net.parameters():
                 p.requires_grad = True  # temporarily set it back to true (required for the computation graph)
             out = self.__net(inp)
-            print(out)
             for p in self.__net.parameters():
                 p.requires_grad = False
             return torchviz.make_dot(out)

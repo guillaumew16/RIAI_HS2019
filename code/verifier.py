@@ -19,11 +19,6 @@ def analyze(net, inputs, eps, true_label, verbose=False, net_name=None):
         znet_dot.render(gv_path + "znet.gv", view=False)
         concrete_dot = ana.make_dot_concrete()
         concrete_dot.render(gv_path + "concrete_net.gv", view=False)
-    
-    # FOR DEBUG
-    import sys
-    sys.exit()
-
     return ana.analyze(verbose=verbose)
     # return Analyzer(net, inputs, eps, true_label).analyze(verbose=verbose)
 

@@ -13,3 +13,6 @@ test_cases_generated/conv*/not_robust/*
 test_cases_generated/conv*/maybe_robust/*
 test_cases_generated/fc*/not_robust/*
 test_cases_generated/fc*/maybe_robust/*
+
+# torchviz uses random node labels so it generates different stuff at each execution, so cannot be added on git
+graphviz_outputs/
