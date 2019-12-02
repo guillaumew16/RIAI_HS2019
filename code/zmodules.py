@@ -76,7 +76,8 @@ class zFlatten(_zModule):
         super().__init__()
     def out_dim(self):
         if self.in_dim is None:
-            raise Warning("Attribute self.in_dim should have been initialized, but is still =None. returning out_dim=None")
+            import warnings
+            warnings.warn("Attribute self.in_dim should have been initialized, but is still =None. returning out_dim=None")
             return None
         return torch.Size([ torch.empty(self.in_dim).numel() ]) # TODO: check whether torch.Size supports a better way to do this...
     def forward(self, zonotope):

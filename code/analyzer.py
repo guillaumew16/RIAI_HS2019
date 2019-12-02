@@ -110,8 +110,12 @@ class Analyzer:
                 if loss == 0:
                     return True
                 if verbose:
-                    import torchviz
-                    torchviz.make_dot(loss)
+                    try:
+                        import torchviz
+                        torchviz.make_dot(loss)
+                    except ImportError as err:
+                        import warnings
+                        warnings.warn("torchviz is not installed in the execution environment, so cannot make_dot. Skipping")
                 loss.backward()
                 optimizer.step()
 

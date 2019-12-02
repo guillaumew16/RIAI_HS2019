@@ -1,6 +1,7 @@
 import argparse
 import os
 import random
+import warnings
 
 import torch
 from torchvision import datasets, transforms
@@ -73,14 +74,14 @@ def generate_uid():
         for f_name in it:
             under_score_pos = f_name.name.rfind('_')
             if under_score_pos == -1:
-                raise Warning(BASE_DIR_PATH+"/maybe_robust contains a file with bad filename: "+f_name+" (filename should contain '_')")
+                warnings.warn(BASE_DIR_PATH+"/maybe_robust contains a file with bad filename: "+f_name+" (filename should contain '_')")
                 continue
             uids.append( f_name.name[0:under_score_pos] )
     with os.scandir(BASE_DIR_PATH+"/not_robust") as it:
         for f_name in it:
             under_score_pos = f_name.name.rfind('_')
             if under_score_pos == -1:
-                raise Warning(BASE_DIR_PATH+"/not_robust contains a file with bad filename: "+f_name+" (filename should contain '_')")
+                warnings.warn(BASE_DIR_PATH+"/not_robust contains a file with bad filename: "+f_name+" (filename should contain '_')")
                 continue
             uids.append( f_name.name[0:under_score_pos] )
     idx = 0

@@ -60,14 +60,16 @@ class Zonotope:
     def __getitem__(self, item):
         """For a flat zonotope (i.e living in a 'flattened' space with shape (n,) ), returns the zonotope of the `item`-th variable."""
         if len(self.a0.shape) > 2:
-            raise Warning("Called Zonotope.__getitem__ on an instance with a0.shape={}. \
+            import warnings
+            warnings.warn("Called Zonotope.__getitem__ on an instance with a0.shape={}. \
                 It should only be called on instances living in 'flattened spaces', i.e with a0.shape of the form [1, n].".format(a0.shape))
         return Zonotope(self.A[:, item:item + 1], self.a0[:, item:item + 1])
 
     def sum(self):
         """For a flat zonotope (i.e living in a 'flattened' space with shape (n,) ), returns the zonotope of the sum of all variables."""
         if len(self.a0.shape) > 2:
-            raise Warning("Called Zonotope.__getitem__ on an instance with a0.shape={}. \
+            import warnings
+            warnings.warn("Called Zonotope.__getitem__ on an instance with a0.shape={}. \
                 It should only be called on instances living in 'flattened spaces', i.e with a0.shape of the form [1, n].".format(a0.shape))
         return Zonotope(self.A.sum(1, keepdim=True), self.a0.sum(1, keepdim=True))
 
