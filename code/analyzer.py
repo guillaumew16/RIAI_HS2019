@@ -76,15 +76,14 @@ class Analyzer:
         if verbose: print("entering Analyzer.analyze() with znet: \n{}".format(self.znet))
 
         # TODO: move this to a unittest or something. Anyway, this has been tested and it works. (DEBUG)
-        # TODO: we're running this again for convolutions; re-comment this afterward
         # a check that self.znet.lambdas is what we want (i.e the set of all the lambdas used as parameters)
         # this also checks that self.znet only has the lambdas as parameters
-        for zlayer in self.znet.zlayers:
-            print(zlayer)
-            for p in zlayer.parameters():
-                # with torch.no_grad(): # to see that self.znet.lambdas does indeed reference the same thing
-                #     p.fill_(1)
-                print(p)
+        # for zlayer in self.znet.zlayers:
+        #     print(zlayer)
+        #     for p in zlayer.parameters():
+        #         # with torch.no_grad(): # to see that self.znet.lambdas does indeed reference the same thing
+        #         #     p.fill_(1)
+        #         print(p)
         # for lam in self.znet.lambdas:
         #     # with torch.no_grad(): # to see that self.znet.layers.parameters() does indeed reference the same thing
         #     #     p.fill_(2)

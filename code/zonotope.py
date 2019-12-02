@@ -96,15 +96,20 @@ class Zonotope:
         """
         return (self - mean) * (1 / sigma)
 
-    def convolution(self, convolution):
-        """Apply a convolution layer to this zonotope.
+    def convolution(self, weight, bias, stride, padding, dilation, groups):
+        """Apply a convolution layer to this zonotope. The argument types and shapes are the same as the attributes of nn.Conv2d.
         Args:
-            convolution (torch.nn.Conv2d)"""
+            weight (torch.Tensor)
+            bias (torch.Tensor): tensor of shape =`self.dim` (or [1, *`self.dim`])
+            stride (int || tuple of int, int)
+            padding (int || tuple of int, int)
+            dilation (int || tuple of int, int)
+            groups (int)
+        """
         return Zonotope(
-            conv2d(self.A, weight=convolution.weight, bias=None, stride=convolution.stride, padding=convolution.padding,
-                   dilation=convolution.dilation, groups=convolution.groups),
-            conv2d(self.a0, weight=convolution.weight, bias=convolution.bias, stride=convolution.stride,
-                   padding=convolution.padding, dilation=convolution.dilation, groups=convolution.groups))
+            conv2d(self.A, weight=weight, bias=None, stride=stride, padding=padding, dilation=dilation, groups=groups),
+            conv2d(self.a0, weight=weight, bias=bias, stride=stride, padding=padding, dilation=dilation, groups=groups)
+        )
 
     def matmul(self, other):
         return Zonotope(self.A.matmul(other), self.a0.matmul(other))
@@ -127,7 +132,7 @@ class Zonotope:
         return lambda_layer
 
     def relu(self, lambdas=None):
-        """Apply a convolution layer to this zonotope.
+        """Apply a ReLU layer to this zonotope.
         Args:
             lambdas (torch.Tensor || None): the lambdas to use, of shape [1, <*shape of nn layer>].
                 If None, do the vanilla DeepZ transformation.

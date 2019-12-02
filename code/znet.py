@@ -55,7 +55,7 @@ class zNet(nn.Module):
             elif isinstance(layer, Normalization):
                 zlayer = zm.zNormalization(layer.mean, layer.sigma)
             elif isinstance(layer, nn.Flatten):
-                zlayer = zm.zFlatten()
+                zlayer = zm.zFlatten(in_dim=out_dim) # needs to set in_dim right away.
             zlayer.in_dim = out_dim
             out_dim = zlayer.out_dim()
             self.zlayers.append(zlayer)
@@ -65,9 +65,9 @@ class zNet(nn.Module):
         out_dim = torch.Size([1, 28, 28]) # the out_dim of the **previous** layer
         for zlayer in self.zlayers:
             # print(zlayer)
-            assert zlayer.in_dim == out_dim
+            assert zlayer.in_dim == out_dim # DEBUG
             out_dim = zlayer.out_dim()
-        assert out_dim == torch.Size([10])
+        assert out_dim == torch.Size([10]) # DEBUG
 
         self.zonotopes = [None] * (len(self.zlayers) + 1)
 

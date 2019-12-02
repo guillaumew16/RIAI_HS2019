@@ -24,6 +24,7 @@ class _zModule(nn.Module):
             self.__out_dim = self._get_out_dim()
         return self.__out_dim
     
+    # this is intended to be overridden by subclasses, so make it "semiprivate"
     def _get_out_dim(self):
         raise NotImplementedError("Please implement this method")
 
@@ -69,13 +70,10 @@ class zNormalization(_zModule):
         return zonotope.normalization(self.mean, self.sigma)
 
 class zFlatten(_zModule):
-    def __init__(self):
+    def __init__(self, in_dim):
         super().__init__()
+        self.in_dim = in_dim
     def _get_out_dim(self):
-        if self.in_dim is None:
-            import warnings
-            warnings.warn("Attribute self.in_dim should have been initialized, but is still =None. returning out_dim=None")
-            return None
         return torch.Size([ torch.empty(self.in_dim).numel() ]) # TODO: check whether torch.Size supports a better way to do this...
     def forward(self, zonotope):
         return zonotope.flatten()
@@ -94,7 +92,6 @@ class zLinear(_zModule):
         return zonotope.linear_transformation(self.weight, self.bias)
 
 class zConv2d(_zModule):
-
     # Python doesn't support __init__ overload
     # def __init__(self, weight, bias, stride, padding, dilation, groups):
     #     super().__init__()
@@ -112,25 +109,20 @@ class zConv2d(_zModule):
             conv_layer (nn.Conv2d): the corresponding layer in the concrete
         """
         super().__init__()
-        self.__out_dim = None
-
         self.weight = concrete_layer.weight.detach()
         self.bias   = concrete_layer.bias.detach()
         self.stride = concrete_layer.stride # stride is just a tuple of ints
         self.padding = concrete_layer.padding # padding too
         self.dilation = concrete_layer.dilation # dilation too
         self.groups = concrete_layer.groups # groups is just an int
-        
-        self.__concrete_layer = concrete_layer # TODO: once possible, remove this. # TODO: detach concrete_layer's parameters...
 
     def _get_out_dim(self):
-        if self.__out_dim is not None:
-            return self.__out_dim
-        # TODO: maybe try to find a better way to do this... On the other hand multiplying by 0 is probably optimized out by pyTorch
+        # TODO: maybe try to find a better way to do this... 
+        # On the other hand multiplying by 0 is probably optimized out by pyTorch, and anyway the result is cached.
         dummy_input = torch.zeros(1, *self.in_dim)
         dummy_output = self.forward(Zonotope(A=dummy_input, a0=dummy_input))
         self.__out_dim = dummy_output.dim
         return self.__out_dim
 
     def forward(self, zonotope):
-        return zonotope.convolution(self.__concrete_layer)
+        return zonotope.convolution(self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
