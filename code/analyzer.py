@@ -4,6 +4,7 @@ import torch.nn as nn
 from zonotope import Zonotope
 from networks import Normalization
 
+from znet import zNet
 
 class Analyzer:
     """
@@ -15,18 +16,15 @@ class Analyzer:
     `analyze()` optimizes these parameters to minimize the loss.
 
     Attributes:
-        net (networks.FullyConnected || networks.Conv): the network to be analyzed (first layer: Normalization)
-        true_label (int): the true label of the input point
+        znet (zNet): the network with zonotope variables and parameters lambda, s.t self.__net is self.znet "in the concrete"
         input_zonotope (Zonotope): the zonotope to analyze (derived from inp and eps in the __init__)
-        lambdas (list of torch.Tensor): the list of the analyzer's parameters lambdas (one `lambda_layer` tensor for each ReLU layer).
-            Each element `lambda_layer` is a Tensor of shape [1, <*shape of nn layer>] (same as Zonotope.a0).
-            `lambdas` is NOT initialized in `__init__`, but in `analyze()`.
+        true_label (int): the true label of the input point
 
     TODO: these two attributes will be removed once we use pytorch optimizer instead of home-made gradient descent
         learning_rate (float): the learning rate for gradient descent in `analyze()`
         delta (float): the tolerance threshold for gradient descent in `analyze()`
 
-        __relu_counter (int): during .forward(), counts ReLU layers to keep track of where we are in the net. kept for convenience
+        __net (networks.FullyConnected || networks.Conv): the network to be analyzed (first layer: Normalization). kept for convenience
         __inp (torch.Tensor): a copy of the input point inp. kept for convenience
         __eps (float): a copy of the queried eps. kept for convenience
 
@@ -42,7 +40,7 @@ class Analyzer:
     """
 
     def __init__(self, net, inp, eps, true_label, learning_rate=1e-2, delta=1e-9):
-        self.net = net
+        self.__net = net
         for p in net.parameters():
             p.requires_grad = False  # avoid doing useless computations
         self.__inp = inp
@@ -50,7 +48,8 @@ class Analyzer:
         self.true_label = true_label
         self.learning_rate = learning_rate
         self.delta = delta
-        self.__relu_counter = 0
+
+        self.znet = zNet(net)
 
         upper = inp + eps
         lower = inp - eps
@@ -68,34 +67,37 @@ class Analyzer:
         A[:, mask] = torch.diag(((upper - lower) / 2).reshape(-1))
         self.input_zonotope = Zonotope(a0=a0, A=A)
 
-        self.lambdas = [] # initialization is done in `analyze()` directly
-
-    def loss(self, out_zonotope): # TODO: (globally speaking,) using type annotations would probably reduce source code verbosity...
+    def loss(self, output_zonotope): # TODO: (globally speaking,) using type annotations would probably reduce source code verbosity...
         """Elements x in the last (concrete) layer correspond to logits.
         Args:
-            out_zonotope (Zonotope)
+            output_zonotope (Zonotope)
 
         Returns the sum of violations (cf formulas.pdf):
             max_{x(=logit) in output_zonotope} sum_{label l s.t logit[l] > logit[true_label]} (logit[l] - logit[true_label])
         """
         # TODO: we can use https://github.com/szagoruyko/pytorchviz to visualize loss() too.
-        assert out_zonotope.dim == torch.Size(10)
-        return (out_zonotope - out_zonotope[self.true_label]).relu().sum().upper()
+        assert output_zonotope.dim == torch.Size(10)
+        return (output_zonotope - output_zonotope[self.true_label]).relu().sum().upper()
 
-    def analyze(self):
-        # TODO: use an optimizer from pyTorch or SciPy instead of doing gradient descent ourselves
-        """Run gradient descent on `self.lambdas` to minimize `self.loss(self.foward())`."""
+    def analyze(self, verbose=False):
+        """Run an optimizer on `self.znet.lambdas` to minimize `self.loss(self.foward())`."""
+        # TODO: (top priority) this is where I'm at right now: check out https://pytorch.org/docs/stable/optim.html and set the thing up
 
-        # register self.lambdas and self.zonotopes as variables of the net
-        # the lambdas are initialized to what the vanilla DeepZ would do
-        init_zonotope = self.input_zonotope.reset()
-        for layer in self.net.layers:
-            if isinstance(layer, nn.ReLU):
-                with torch.no_grad():
-                    lambda_layer = init_zonotope.compute_lambda_breaking_point()
-                lambda_layer.requires_grad_()
-                self.lambdas.append(lam)
-            init_zonotope = self.forward_step(init_zonotope, layer)
+        # TODO: check that this is what we want (i.e the set of all the lambdas)
+        print(self.znet.parameters() )
+
+        # TODO: choose optimizer and parameters (this one was chosen at random in the doc) https://pytorch.org/docs/stable/optim.html
+        optimizer = optim.SGD(self.znet.parameters(), lr=0.01, momentum=0.9)
+
+        optimizer.zero_grad()
+        output_zonotope = self.znet(self.input_zonotope, verbose=verbose)
+        loss = self.loss(output_zonotope)
+        loss.backward()
+        optimizer.step()
+
+
+        loss = self.loss(self.forward())
+
 
         while True:
             loss = self.loss(self.forward())

@@ -51,7 +51,7 @@ class zNet(nn.Module):
                 #     groups=layer.groups
                 # )
             elif isinstance(layer, Normalization):
-                zlayer = zm.Normalization(layer.mean, layer.sigma)
+                zlayer = zm.zNormalization(layer.mean, layer.sigma)
             elif isinstance(layer, nn.Flatten):
                 zlayer = zm.zFlatten()
             zlayer.in_dim = out_dim
@@ -71,7 +71,7 @@ class zNet(nn.Module):
         self.lambdas = []
         self.relu_ind = []
         for idx, zlayer in enumerate(self.zlayers):
-            if isinstance(zlayer, zmodules.zReLU): # where zmodules is the name of the file containing the zlayers objects
+            if isinstance(zlayer, zm.zReLU):
                 self.lambdas.append(zlayer.parameters()) # captures the Parameters (in python, "Object references are passed by value") # TODO: check that this is the case
                 self.relu_ind.append(idx)
 
