@@ -130,16 +130,16 @@ class zConv2d(_zModule):
 
         self.weight = concrete_layer.weight.detach()
         self.bias   = concrete_layer.bias.detach()
-        self.stride = concrete_layer.stride.detach()
-        self.padding = concrete_layer.padding.detach()
-        self.dilation = concrete_layer.dilation.detach()
-        self.groups = concrete_layer.groups.detach()
+        self.stride = concrete_layer.stride # stride is just a tuple of ints
+        self.padding = concrete_layer.padding # padding too
+        self.dilation = concrete_layer.dilation # dilation too
+        self.groups = concrete_layer.groups # groups is just an int
         
         self.__concrete_layer = concrete_layer # TODO: once possible, remove this. # TODO: detach concrete_layer's parameters...
 
     def out_dim(self):
         if self.__out_dim is not None:
-            return out_dim
+            return self.__out_dim
         # TODO: maybe try to find a better way to do this... On the other hand multiplying by 0 is probably optimized out by pyTorch
         dummy_input = torch.zeros(1, *self.in_dim)
         dummy_output = self.forward(Zonotope(A=dummy_input, a0=dummy_input))

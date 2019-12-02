@@ -16,8 +16,12 @@ else
     fi fi
 fi
 
-net=fc2
-spec="img1_0.04100.txt"
+# net=fc1
+# spec="img1_0.07500.txt"
+# net=fc2
+# spec="img1_0.04100.txt"
+net=conv1
+spec="img0_0.00200.txt"
 t=3
 
 echo "Evaluating network ${net}..."

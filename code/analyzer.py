@@ -38,8 +38,6 @@ class Analyzer:
         self.__inp = inp
         self.__eps = eps
         self.true_label = true_label
-        self.learning_rate = learning_rate
-        self.delta = delta
 
         self.znet = zNet(net)
 
@@ -77,15 +75,16 @@ class Analyzer:
         TODO: The last half of the above statement is not exactly it: we can still use ensembling ideas as described in project statement"""
         if verbose: print("entering Analyzer.analyze() with znet: \n{}".format(self.znet))
 
-        # TODO: move this to a unittest or something. Anyway, this has been tested and it works.
+        # TODO: move this to a unittest or something. Anyway, this has been tested and it works. (DEBUG)
+        # TODO: we're running this again for convolutions; re-comment this afterward
         # a check that self.znet.lambdas is what we want (i.e the set of all the lambdas used as parameters)
         # this also checks that self.znet only has the lambdas as parameters
-        # for zlayer in self.znet.zlayers:
-        #     print(zlayer)
-        #     for p in zlayer.parameters():
-        #         # with torch.no_grad(): # to see that self.znet.lambdas does indeed reference the same thing
-        #         #     p.fill_(1)
-        #         print(p)
+        for zlayer in self.znet.zlayers:
+            print(zlayer)
+            for p in zlayer.parameters():
+                # with torch.no_grad(): # to see that self.znet.lambdas does indeed reference the same thing
+                #     p.fill_(1)
+                print(p)
         # for lam in self.znet.lambdas:
         #     # with torch.no_grad(): # to see that self.znet.layers.parameters() does indeed reference the same thing
         #     #     p.fill_(2)
@@ -116,8 +115,10 @@ class Analyzer:
                 optimizer.step()
 
 
-    def make_dot_loss(self):
-        """Use https://github.com/szagoruyko/pytorchviz to visualize the computation graph of the loss."""
+    def make_dot_loss(self, gv_filename):
+        """Use https://github.com/szagoruyko/pytorchviz to visualize the computation graph of the loss.
+        Writes the result to gv_filename in .gv and .gv.pdf formats.
+        Returns the corresponding graphviz.Digraph object."""
         try:
             import torchviz
             inp_zono = Zonotope(
@@ -126,13 +127,15 @@ class Analyzer:
             )
             out_zono = self.znet(inp_zono)
             loss = self.loss(out_zono)
-            return torchviz.make_dot(loss)
+            dot = torchviz.make_dot(loss)
+            dot.render(gv_filename, view=False)
+            return dot
         except ImportError as err:
             import warnings
             warnings.warn("torchviz is not installed in the execution environment, so cannot make_dot. Skipping")
 
-    def make_dot_znet(self):
-        """Use https://github.com/szagoruyko/pytorchviz to visualize the computation graph of the zNet."""
+    def make_dot_znet(self, gv_filename):
+        """Visualize the computation graph of the zNet."""
         try:
             import torchviz
             inp_zono = Zonotope(
@@ -141,13 +144,15 @@ class Analyzer:
             )
             out_zono = self.znet(inp_zono)
             out_aggr = torch.cat([out_zono.A, out_zono.a0], dim=0)
-            return torchviz.make_dot(out_aggr)
+            dot = torchviz.make_dot(out_aggr)
+            dot.render(gv_filename, view=False)
+            return dot
         except ImportError as err:
             import warnings
             warnings.warn("torchviz is not installed in the execution environment, so cannot make_dot. Skipping")
 
-    def make_dot_concrete(self):
-        """Use https://github.com/szagoruyko/pytorchviz to visualize the computation graph of concrete network `self.__net`."""
+    def make_dot_concrete(self, gv_filename):
+        """Visualize the computation graph of concrete network `self.__net`."""
         try:
             import torchviz
             inp = torch.zeros(784, 1, 28, 28)
@@ -156,7 +161,9 @@ class Analyzer:
             out = self.__net(inp)
             for p in self.__net.parameters():
                 p.requires_grad = False
-            return torchviz.make_dot(out)
+            dot = torchviz.make_dot(out)
+            dot.render(gv_filename, view=False)
+            return dot
         except ImportError as err:
             import warnings
             warnings.warn("torchviz is not installed in the execution environment, so cannot make_dot. Skipping")

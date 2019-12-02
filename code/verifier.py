@@ -13,12 +13,9 @@ def analyze(net, inputs, eps, true_label, verbose=False, net_name=None):
         gv_path = "../graphviz_outputs/"
         if net_name is not None:
             gv_path += net_name + "/"
-        loss_dot = ana.make_dot_loss()
-        loss_dot.render(gv_path + "loss.gv", view=False)
-        znet_dot = ana.make_dot_znet()
-        znet_dot.render(gv_path + "znet.gv", view=False)
-        concrete_dot = ana.make_dot_concrete()
-        concrete_dot.render(gv_path + "concrete_net.gv", view=False)
+        ana.make_dot_loss(gv_path + "loss.gv")
+        ana.make_dot_znet(gv_path + "znet.gv")
+        ana.make_dot_concrete(gv_path + "concrete_net.gv")
     return ana.analyze(verbose=verbose)
     # return Analyzer(net, inputs, eps, true_label).analyze(verbose=verbose)
 
