@@ -84,10 +84,10 @@ class Analyzer:
         Returns True iff the `self.__net` is verifiably robust on `self.input_zonotope`, i.e there exist lambdas s.t loss == 0
         Doesn't return until it is the case, i.e never returns False
         TODO: The last half of the above statement is not exactly it: we can still use ensembling ideas as described in project statement"""
+        if verbose: print("entering Analyzer.analyze() with znet: \n{}".format(self.znet))
 
         # TODO: check that this is what we want (i.e the set of all the lambdas)
-        print(self.znet.parameters() )
-        print(self.znet.lambdas) # should be the same as above, but as a list
+        print("(TODEBUG) self.znet.parameters={}; self.znet.lambdas={}".format(self.znet.parameters(), self.znet.lambdas)) # should be the same, but as a list
 
         # TODO: select optimizer and parameters https://pytorch.org/docs/stable/optim.html. E.g: 
         # optimizer = optim.SGD(self.znet.parameters(), lr=0.01, momentum=0.9)
@@ -96,9 +96,14 @@ class Analyzer:
         dataset = [self.input_zonotope] # can run the optimizer on different zonotopes in general
                                         # e.g we could try partitioning the zonotopes into smaller zonotopes and verify them separately
         for inp_zono in dataset:
+            if verbose: print("Analyzer.analyze(): performing the optimization on inp_zono: {}".format(inp_zono))
             # aaaand actually for now just do this over and over. (TODO: add a source of randomness otherwise this is dumb)
             # TODO: do something smarter
+            while_counter = 0
             while True:
+                print("Analyzer.analyze(): iteration #{}".format(while_counter))
+                while_counter += 1
+
                 optimizer.zero_grad()
                 out_zono = self.znet(inp_zono, verbose=verbose)
                 loss = self.loss(out_zono)
@@ -109,3 +114,4 @@ class Analyzer:
                     torchviz.make_dot(loss)
                 loss.backward()
                 optimizer.step()
+

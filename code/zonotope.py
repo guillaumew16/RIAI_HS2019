@@ -22,16 +22,17 @@ class Zonotope:
         self.A = A
 
     def __str__(self):
-        return "Zonotope center: {}, epsilon coefficients: {}".format(self.a0, self.A)
+        return "Zonotope with dim={} and nb_error_terms={}".format(self.dim, self.nb_error_terms)
+        # return "Zonotope center: {}, epsilon coefficients: {}".format(self.a0, self.A)
 
     @property
     def dim(self):
         """Dimension of the ambiant space"""
-        return A.shape[1:]
+        return self.A.shape[1:]
 
     @property
     def nb_error_terms(self):
-        return A.shape[0]
+        return self.A.shape[0]
 
     def reset(self):
         """Returns a fresh Zonotope with the same data but no bindings to any output tensor"""
@@ -59,15 +60,15 @@ class Zonotope:
     def __getitem__(self, item):
         """For a flat zonotope (i.e living in a 'flattened' space with shape (n,) ), returns the zonotope of the `item`-th variable."""
         if len(self.a0.shape) > 2:
-            raise Warning("Called Zonotope.__getitem__ on an instance with a0.shape=" + str(a0.shape)
-                + ". It should only be called on instances living in 'flattened spaces', i.e with a0.shape of the form [1, n].")
+            raise Warning("Called Zonotope.__getitem__ on an instance with a0.shape={}. \
+                It should only be called on instances living in 'flattened spaces', i.e with a0.shape of the form [1, n].".format(a0.shape))
         return Zonotope(self.A[:, item:item + 1], self.a0[:, item:item + 1])
 
     def sum(self):
         """For a flat zonotope (i.e living in a 'flattened' space with shape (n,) ), returns the zonotope of the sum of all variables."""
         if len(self.a0.shape) > 2:
-            raise Warning("Called Zonotope.__getitem__ on an instance with a0.shape=" + str(a0.shape)
-                + ". It should only be called on instances living in 'flattened spaces', i.e with a0.shape of the form [1, n].")
+            raise Warning("Called Zonotope.__getitem__ on an instance with a0.shape={}. \
+                It should only be called on instances living in 'flattened spaces', i.e with a0.shape of the form [1, n].".format(a0.shape))
         return Zonotope(self.A.sum(1, keepdim=True), self.a0.sum(1, keepdim=True))
 
     def lower(self):

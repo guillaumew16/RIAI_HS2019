@@ -107,8 +107,8 @@ def write_to_file(x, eps, true_label, robust, uid):
         filename (str): the auto-generated filename used
     """
     if list(x.shape) != [1, 1, 28, 28]:
-        raise ValueError("bad tensor shape: expected x of shape [1, 1, 28, 28], got "+str(x.shape))
-    filename = str(uid) + "_" + str(eps) + ".txt"
+        raise ValueError("bad tensor shape: expected x of shape [1, 1, 28, 28], got {}".format(x.shape))
+    filename = "{}_{}.txt".format(uid, eps)
     robustness_path = 'maybe_robust' if robust else 'not_robust'
     filename = os.path.join(BASE_DIR_PATH, robustness_path, filename)
     print("Writing data to file", filename, "...")
@@ -138,7 +138,7 @@ def read_from_file(filename):
     elif filename.find('not_robust'):
         robust = False
     if robust is None:
-        raise ValueError("bad file path (should contain 'maybe_robust' or 'not_robust'): " + str(filename))
+        raise ValueError("bad file path (should contain 'maybe_robust' or 'not_robust'): {}".format(filename))
 
     # keep the exact same code as in `verifier.py`
     with open(filename, 'r') as f:

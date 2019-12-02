@@ -14,7 +14,7 @@ class _zModule(nn.Module):
         self.in_dim = None # can be interpreted as "any"...
 
     def __str__(self):
-        return super().__str__() + " in_dim=" + str(self.in_dim) + " out_dim=" + str(self.out_dim())
+        return super().__str__() + " in_dim={} out_dim={}".format(self.in_dim, self.out_dim())
 
     def out_dim(self):
         raise NotImplementedError("Please implement this method")
@@ -38,15 +38,18 @@ class zReLU(_zModule):
         return self.in_dim
 
     def forward(self, zonotope):
-        if self.__uninitialized():
+        if self.__uninitialized:
             self.initialize_parameters(zonotope)
         # TODO: move code over here
-        zonotope.relu(self.lambda_layer)
+        return zonotope.relu(self.lambda_layer)
 
     def initialize_parameters(self, zonotope):
         """Initialize self.lambda_layer to the vanilla DeepZ coefficients on this particular input zonotope"""
         self.__uninitialized = False
-        self.lambda_layer = zonotope.compute_lambda_breaking_point()
+        # https://stackoverflow.com/questions/49433936/how-to-initialize-weights-in-pytorch
+        # https://pytorch.org/docs/master/_modules/torch/nn/init.html
+        with torch.no_grad():
+            self.lambda_layer.data = zonotope.compute_lambda_breaking_point()
 
 class zNormalization(_zModule):
     def __init__(self, mean, sigma):
@@ -66,7 +69,7 @@ class zNormalization(_zModule):
         return self.in_dim
 
     def forward(self, zonotope):
-        zonotope.normalization(self.mean, self.sigma)
+        return zonotope.normalization(self.mean, self.sigma)
 
 class zFlatten(_zModule):
     def __init__(self):
@@ -77,7 +80,7 @@ class zFlatten(_zModule):
             return None
         return torch.Size([ torch.empty(self.in_dim).numel() ]) # TODO: check whether torch.Size supports a better way to do this...
     def forward(self, zonotope):
-        zonotope.flatten()
+        return zonotope.flatten()
 
 class zLinear(_zModule):
     def __init__(self, weight, bias):
@@ -100,7 +103,7 @@ class zLinear(_zModule):
         return self.weight.shape[:1]
 
     def forward(self, zonotope):
-        zonotope.linear_transformation(self.weight, self.bias)
+        return zonotope.linear_transformation(self.weight, self.bias)
 
 class zConv2d(_zModule):
 
@@ -139,4 +142,4 @@ class zConv2d(_zModule):
         return dummy_output.shape[1:]
 
     def forward(self, zonotope):
-        zonotope.convolution(self.__concrete_layer)
+        return zonotope.convolution(self.__concrete_layer)

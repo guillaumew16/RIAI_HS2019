@@ -8,7 +8,8 @@ INPUT_SIZE = 28
 
 
 def analyze(net, inputs, eps, true_label):
-    return Analyzer(net, inputs, eps, true_label).analyze()
+    return Analyzer(net, inputs, eps, true_label).analyze(verbose=True)
+    # return Analyzer(net, inputs, eps, true_label).analyze()
 
 
 def main():

@@ -78,6 +78,12 @@ class zNet(nn.Module):
                 self.lambdas.append(zlayer.parameters()) # captures the nn.Parameters (in python, "Object references are passed by value") # TODO: check that this is the case
                 self.relu_ind.append(idx)
 
+    def __str__(self):
+        toprint = ""
+        for idx, zlayer in enumerate(self.zlayers):
+            toprint += "{} {}\n".format(idx, zlayer)
+        return toprint.rstrip()
+
     def forward_step(self, zonotope, zlayer, verbose=False):
         """Applies `layer` to `zonotope` (using `self.lambdas` if `layer` is a ReLU) and returns the result.
         Args:
@@ -89,12 +95,7 @@ class zNet(nn.Module):
             raise ValueError("expected a zm._zModule")
         if verbose:
             # print debug information about zonotope's shape, layer's shape, what type of layer this is...
-            # TODO: do something prettier than this
-            print(zonotope.dim)
-            print(zonotope.nb_error_terms)
-            print(type(zlayer))
-            print(zlayer.in_dim)
-            print(zlayer.out_dim)
+            print("\tapplying zNet.forward_step() at layer: {}\n\ton zonotope: {}".format(zlayer, zonotope))
         return zlayer(zonotope)
 
     def forward(self, input_zonotope, verbose=False):
@@ -102,12 +103,15 @@ class zNet(nn.Module):
         Args:
             input_zonotope (Zonotope): the zonotope, of shape A.shape=[784, 1, 28, 28]
         """
+        if verbose: print("entering zNet.forward()...")
         zonotope = input_zonotope.reset() # avoid capturing, just in case
         self.zonotopes[0] = zonotope
         for idx, zlayer in enumerate(self.zlayers):
             if verbose:
-                print("layer #", idx)
+                print("calling zNet.forward_step() on layer #", idx)
+                # print("self.zonotopes[{}]: {}".format(idx, self.zonotopes[idx]) )
             self.zonotopes[idx+1] = self.forward_step(self.zonotopes[idx], zlayer, verbose=verbose)
+        if verbose: print("finished running zNet.forward().")
         return self.zonotopes[-1]
 
     def make_dot(self):
