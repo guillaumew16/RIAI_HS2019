@@ -86,8 +86,8 @@ class zFlatten(_zModule):
 class zLinear(_zModule):
     def __init__(self, weight, bias):
         super().__init__()
-        self.weight = weight
-        self.bias = bias
+        self.weight = weight.detach()
+        self.bias = bias.detach()
 
     # Python doesn't support __init__ overload
     # def __init__(self, concrete_layer):
@@ -125,14 +125,14 @@ class zConv2d(_zModule):
             conv_layer (nn.Conv2d): the corresponding layer in the concrete
         """
         super().__init__()
-        self.weight = concrete_layer.weight
-        self.bias   = concrete_layer.bias
-        self.stride = concrete_layer.stride
-        self.padding = concrete_layer.padding
-        self.dilation = concrete_layer.dilation
-        self.groups = concrete_layer.groups
+        self.weight = concrete_layer.weight.detach()
+        self.bias   = concrete_layer.bias.detach()
+        self.stride = concrete_layer.stride.detach()
+        self.padding = concrete_layer.padding.detach()
+        self.dilation = concrete_layer.dilation.detach()
+        self.groups = concrete_layer.groups.detach()
         
-        self.__concrete_layer = concrete_layer # TODO: once possible, remove this
+        self.__concrete_layer = concrete_layer # TODO: once possible, remove this. # TODO: detach concrete_layer's parameters...
 
     def out_dim(self):
         # TODO: maybe try to find a better way to do this... On the other hand this is not supposed be called very often anyway

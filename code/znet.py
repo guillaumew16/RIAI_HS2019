@@ -75,7 +75,7 @@ class zNet(nn.Module):
         self.relu_ind = []
         for idx, zlayer in enumerate(self.zlayers):
             if isinstance(zlayer, zm.zReLU):
-                self.lambdas.append(zlayer.parameters()) # captures the nn.Parameters (in python, "Object references are passed by value") # TODO: check that this is the case
+                self.lambdas.append(zlayer.lambda_layer) # captures the nn.Parameters (in python, "Object references are passed by value") # TODO: check that this is the case
                 self.relu_ind.append(idx)
 
     def __str__(self):

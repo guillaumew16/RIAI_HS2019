@@ -1,4 +1,23 @@
 #!/bin/bash
 
-verbosity="--myverbose"
-timeout 3s python verifier.py --net fc2 --spec ../test_cases/fc2/img1_0.04100.txt ${verbosity} || echo "timed out (or error)"
+if [[ $# -ne 1 ]]; then
+	echo "Usage: my_test <v || nv> (verbose or not-verbose)"
+	exit 0
+else
+	if [[ $1 == "v" ]]; then
+        verbosity="--myverbose"
+    else if [[ $1 == "nv" ]]; then
+        verbosity=""
+    else
+        echo "Usage: my_test <v || nv> (verbose or not-verbose)"
+        exit 0
+    fi fi
+fi
+
+net=fc2
+spec="img1_0.04100.txt"
+t=3
+
+echo "Evaluating network ${net}..."
+echo -ne "\ttest_cases/${net}/${spec}: \t"
+timeout ${t}s python verifier.py --net ${net} --spec ../test_cases/${net}/${spec} || echo "timed out (or error)"

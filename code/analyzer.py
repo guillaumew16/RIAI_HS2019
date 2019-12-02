@@ -86,8 +86,19 @@ class Analyzer:
         TODO: The last half of the above statement is not exactly it: we can still use ensembling ideas as described in project statement"""
         if verbose: print("entering Analyzer.analyze() with znet: \n{}".format(self.znet))
 
-        # TODO: check that this is what we want (i.e the set of all the lambdas)
-        print("(TODEBUG) self.znet.parameters={}; self.znet.lambdas={}".format(self.znet.parameters(), self.znet.lambdas)) # should be the same, but as a list
+        # TODO: move this to a unittest or something. Anyway, this has been tested and it works.
+        # a check that self.znet.lambdas is what we want (i.e the set of all the lambdas used as parameters)
+        # this also checks that self.znet only has the lambdas as parameters
+        # for zlayer in self.znet.zlayers:
+        #     print(zlayer)
+        #     for p in zlayer.parameters():
+        #         # with torch.no_grad(): # to see that self.znet.lambdas does indeed reference the same thing
+        #         #     p.fill_(1)
+        #         print(p)
+        # for lam in self.znet.lambdas:
+        #     # with torch.no_grad(): # to see that self.znet.layers.parameters() does indeed reference the same thing
+        #     #     p.fill_(2)
+        #     print(lam)
 
         # TODO: select optimizer and parameters https://pytorch.org/docs/stable/optim.html. E.g: 
         # optimizer = optim.SGD(self.znet.parameters(), lr=0.01, momentum=0.9)
