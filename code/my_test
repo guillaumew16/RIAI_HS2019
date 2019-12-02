@@ -1,2 +1,4 @@
 #!/bin/bash
-timeout 3s python verifier.py --net fc1 --spec ../test_cases/fc1/img1_0.07500.txt || echo "timed out (or error)"
+
+verbosity="--myverbose"
+timeout 3s python verifier.py --net fc2 --spec ../test_cases/fc2/img1_0.04100.txt ${verbosity} || echo "timed out (or error)"

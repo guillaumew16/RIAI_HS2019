@@ -2,19 +2,36 @@
 
 # evaluates on generated test cases.
 
+if [[ $# -ne 1 ]]; then
+	echo "Usage: my_evaluate_with_timeout <timeout> (in seconds). Note that the timeout used for official evaluation will be 120 seconds."
+	echo "Running with timeout=3 seconds..."
+	t=3
+else
+	t=$1
+fi
+
 for net in fc1 fc2 fc3 fc4 fc5 conv1 conv2 conv3 conv4 conv5
 do
 	echo "Evaluating network ${net}..."
+
+	echo -e "\tOn given test cases"
+	for spec in `ls ../test_cases/${net}`
+	do
+		echo -ne "\t\t${spec}: \t"
+		timeout ${t}s python verifier.py --net ${net} --spec ../test_cases/${net}/${spec} || echo "not verified"
+	done
+
 	echo -e "\tOn \"maybe robust\" test cases (should \"maybe\" output 'verified')"
 	for spec in `ls ../test_cases_generated/${net}/maybe_robust`
 	do
 		echo -ne "\t\t${spec}: \t"
-		timeout 2m python verifier.py --net ${net} --spec ../test_cases_generated/${net}/maybe_robust/${spec} || echo "not verified"
+		timeout ${t}s python verifier.py --net ${net} --spec ../test_cases_generated/${net}/maybe_robust/${spec} || echo "not verified"
 	done
+
 	echo -e "\tOn non-robust test cases (should output 'not verified')"
 	for spec in `ls ../test_cases_generated/${net}/not_robust`
 	do
 		echo -ne "\t\t${spec}: \t"
-		timeout 2m python verifier.py --net ${net} --spec ../test_cases_generated/${net}/not_robust/${spec} || echo "not verified"
+		timeout ${t}s python verifier.py --net ${net} --spec ../test_cases_generated/${net}/not_robust/${spec} || echo "not verified"
 	done
 done

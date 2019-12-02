@@ -7,9 +7,8 @@ DEVICE = 'cpu'
 INPUT_SIZE = 28
 
 
-def analyze(net, inputs, eps, true_label):
-    return Analyzer(net, inputs, eps, true_label).analyze(verbose=True)
-    # return Analyzer(net, inputs, eps, true_label).analyze()
+def analyze(net, inputs, eps, true_label, verbose=False):
+    return Analyzer(net, inputs, eps, true_label).analyze(verbose=verbose)
 
 
 def main():
@@ -20,6 +19,9 @@ def main():
                         required=True,
                         help='Neural network to verify.')
     parser.add_argument('--spec', type=str, required=True, help='Test case to verify.')
+    parser.add_argument('--myverbose', 
+                        action='store_true', # False by default
+                        help="Run the analyzer verbosely. (student-defined flag)")
     args = parser.parse_args()
 
     with open(args.spec, 'r') as f:
@@ -56,7 +58,7 @@ def main():
     pred_label = outs.max(dim=1)[1].item()
     assert pred_label == true_label
 
-    if analyze(net, inputs, eps, true_label):
+    if analyze(net, inputs, eps, true_label, args.myverbose):
         print('verified')
     else:
         print('not verified')

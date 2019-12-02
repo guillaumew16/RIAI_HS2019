@@ -101,7 +101,8 @@ class Analyzer:
             # TODO: do something smarter
             while_counter = 0
             while True:
-                print("Analyzer.analyze(): iteration #{}".format(while_counter))
+                if verbose:
+                    print("Analyzer.analyze(): iteration #{}".format(while_counter))
                 while_counter += 1
 
                 optimizer.zero_grad()
