@@ -66,7 +66,7 @@ class Analyzer:
         mask = torch.ones(*inp.shape[1:], dtype=torch.bool)
 
         A[:, mask] = torch.diag(((upper - lower) / 2).reshape(-1))
-        self.input_zonotope = Zonotope(a0=a0, A=A)
+        self.input_zonotope = Zonotope(A=A, a0=a0)
 
     def loss(self, output_zonotope): # TODO: (globally speaking,) using type annotations would probably reduce source code verbosity...
         """Elements x in the last (concrete) layer correspond to logits.
@@ -121,13 +121,52 @@ class Analyzer:
                 loss = self.loss(out_zono)
                 if loss == 0:
                     return True
-                if verbose:
-                    try:
-                        import torchviz
-                        torchviz.make_dot(loss)
-                    except ImportError as err:
-                        import warnings
-                        warnings.warn("torchviz is not installed in the execution environment, so cannot make_dot. Skipping")
                 loss.backward()
                 optimizer.step()
 
+
+    def make_dot_loss(self):
+        """Use https://github.com/szagoruyko/pytorchviz to visualize the computation graph of the loss."""
+        try:
+            import torchviz
+            inp_zono = Zonotope(
+                A=torch.zeros_like(self.input_zonotope.A),
+                a0=torch.zeros_like(self.input_zonotope.a0)
+            )
+            out_zono = self.znet(inp_zono)
+            loss = self.loss(out_zono)
+            return torchviz.make_dot(loss)
+        except ImportError as err:
+            import warnings
+            warnings.warn("torchviz is not installed in the execution environment, so cannot make_dot. Skipping")
+
+    def make_dot_znet(self):
+        """Use https://github.com/szagoruyko/pytorchviz to visualize the computation graph of the zNet."""
+        try:
+            import torchviz
+            inp_zono = Zonotope(
+                A=torch.zeros_like(self.input_zonotope.A),
+                a0=torch.zeros_like(self.input_zonotope.a0)
+            )
+            out_zono = self.znet(inp_zono)
+            out_aggr = torch.cat([out_zono.A, out_zono.a0], dim=0)
+            return torchviz.make_dot(out_aggr)
+        except ImportError as err:
+            import warnings
+            warnings.warn("torchviz is not installed in the execution environment, so cannot make_dot. Skipping")
+
+    def make_dot_concrete(self):
+        """Use https://github.com/szagoruyko/pytorchviz to visualize the computation graph of concrete network `self.__net`."""
+        try:
+            import torchviz
+            inp = torch.zeros(784, 1, 28, 28)
+            for p in self.__net.parameters():
+                p.requires_grad = True  # temporarily set it back to true (required for the computation graph)
+            out = self.__net(inp)
+            print(out)
+            for p in self.__net.parameters():
+                p.requires_grad = False
+            return torchviz.make_dot(out)
+        except ImportError as err:
+            import warnings
+            warnings.warn("torchviz is not installed in the execution environment, so cannot make_dot. Skipping")

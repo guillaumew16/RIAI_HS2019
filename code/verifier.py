@@ -7,8 +7,25 @@ DEVICE = 'cpu'
 INPUT_SIZE = 28
 
 
-def analyze(net, inputs, eps, true_label, verbose=False):
-    return Analyzer(net, inputs, eps, true_label).analyze(verbose=verbose)
+def analyze(net, inputs, eps, true_label, verbose=False, net_name=None):
+    ana = Analyzer(net, inputs, eps, true_label)
+    if verbose:
+        gv_path = "../graphviz_outputs/"
+        if net_name is not None:
+            gv_path += net_name + "/"
+        loss_dot = ana.make_dot_loss()
+        loss_dot.render(gv_path + "loss.gv", view=False)
+        znet_dot = ana.make_dot_znet()
+        znet_dot.render(gv_path + "znet.gv", view=False)
+        concrete_dot = ana.make_dot_concrete()
+        concrete_dot.render(gv_path + "concrete_net.gv", view=False)
+    
+    # FOR DEBUG
+    import sys
+    sys.exit()
+
+    return ana.analyze(verbose=verbose)
+    # return Analyzer(net, inputs, eps, true_label).analyze(verbose=verbose)
 
 
 def main():
@@ -58,7 +75,7 @@ def main():
     pred_label = outs.max(dim=1)[1].item()
     assert pred_label == true_label
 
-    if analyze(net, inputs, eps, true_label, args.myverbose):
+    if analyze(net, inputs, eps, true_label, args.myverbose, args.net):
         print('verified')
     else:
         print('not verified')

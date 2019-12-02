@@ -94,7 +94,7 @@ class zNet(nn.Module):
         if not isinstance(zlayer, zm._zModule):
             raise ValueError("expected a zm._zModule")
         if verbose:
-            # print debug information about zonotope's shape, layer's shape, what type of layer this is...
+            # print some information about zonotope's shape, layer's shape, what type of layer this is...
             print("\tapplying zNet.forward_step() at layer: {}\n\ton zonotope: {}".format(zlayer, zonotope))
         return zlayer(zonotope)
 
@@ -113,11 +113,3 @@ class zNet(nn.Module):
             self.zonotopes[idx+1] = self.forward_step(self.zonotopes[idx], zlayer, verbose=verbose)
         if verbose: print("finished running zNet.forward().")
         return self.zonotopes[-1]
-
-    def make_dot(self):
-        # use https://github.com/szagoruyko/pytorchviz to visualize the Znet
-        import torchviz # cannot run this in production (pytorchviz is not in requirements.txt)
-        inp_zono = torch.zeros([784, 1, 28, 28])
-        # inp_zono = torch.zeros( self.zlayers[0].in_dim )
-        out_zono = self.forward(inp_zono)
-        torchviz.make_dot(out_zono)
