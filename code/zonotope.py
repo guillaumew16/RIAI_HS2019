@@ -85,11 +85,13 @@ class Zonotope:
         """Apply a torch.nn.Flatten() layer to this zonotope."""
         return Zonotope(torch.nn.Flatten()(self.A), torch.nn.Flatten()(self.a0))
 
-    def normalization(self, normalization_layer):
+    def normalization(self, mean, sigma):
         """Apply a normalization layer to this zonotope.
         Args:
-            normalization_layer (networks.Normalization)"""
-        return (self - normalization_layer.mean) * (1 / normalization_layer.sigma)
+            mean (torch.Tensor): mean to subtract, of shape [1, 1, 1, 1] (same as in networks.Normalization). (Any shape broadcastable to [1] works too.)
+            sigma (torch.Tensor): sigma to divide, of shape [1, 1, 1, 1]
+        """
+        return (self - mean) * (1 / sigma)
 
     def convolution(self, convolution):
         """Apply a convolution layer to this zonotope.

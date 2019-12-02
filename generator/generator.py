@@ -137,7 +137,7 @@ def read_from_file(filename):
         robust = True
     elif filename.find('not_robust'):
         robust = False
-    if robust == None:
+    if robust is None:
         raise ValueError("bad file path (should contain 'maybe_robust' or 'not_robust'): " + str(filename))
 
     # keep the exact same code as in `verifier.py`

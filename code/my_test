@@ -1,0 +1,2 @@
+#!/bin/bash
+timeout 3s python verifier.py --net fc1 --spec ../test_cases/fc1/img0_0.06000.txt || echo finished early

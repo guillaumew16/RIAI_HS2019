@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.optim as optim
 
 from zonotope import Zonotope
 from networks import Normalization
@@ -75,46 +76,36 @@ class Analyzer:
         Returns the sum of violations (cf formulas.pdf):
             max_{x(=logit) in output_zonotope} sum_{label l s.t logit[l] > logit[true_label]} (logit[l] - logit[true_label])
         """
-        # TODO: we can use https://github.com/szagoruyko/pytorchviz to visualize loss() too.
-        assert output_zonotope.dim == torch.Size(10)
+        assert output_zonotope.dim == torch.Size([10])
         return (output_zonotope - output_zonotope[self.true_label]).relu().sum().upper()
 
     def analyze(self, verbose=False):
-        """Run an optimizer on `self.znet.lambdas` to minimize `self.loss(self.foward())`."""
-        # TODO: (top priority) this is where I'm at right now: check out https://pytorch.org/docs/stable/optim.html and set the thing up
+        """Run an optimizer on `self.znet.lambdas` to minimize `self.loss(self.foward())`.
+        Returns True iff the `self.__net` is verifiably robust on `self.input_zonotope`, i.e there exist lambdas s.t loss == 0
+        Doesn't return until it is the case, i.e never returns False
+        TODO: The last half of the above statement is not exactly it: we can still use ensembling ideas as described in project statement"""
 
         # TODO: check that this is what we want (i.e the set of all the lambdas)
         print(self.znet.parameters() )
+        print(self.znet.lambdas) # should be the same as above, but as a list
 
-        # TODO: choose optimizer and parameters (this one was chosen at random in the doc) https://pytorch.org/docs/stable/optim.html
-        optimizer = optim.SGD(self.znet.parameters(), lr=0.01, momentum=0.9)
+        # TODO: select optimizer and parameters https://pytorch.org/docs/stable/optim.html. E.g: 
+        # optimizer = optim.SGD(self.znet.parameters(), lr=0.01, momentum=0.9)
+        optimizer = optim.Adam(self.znet.parameters(), lr=0.0001)
 
-        optimizer.zero_grad()
-        output_zonotope = self.znet(self.input_zonotope, verbose=verbose)
-        loss = self.loss(output_zonotope)
-        loss.backward()
-        optimizer.step()
-
-
-        loss = self.loss(self.forward())
-
-
-        while True:
-            loss = self.loss(self.forward())
-            # TODO floating point problems?
-            if loss == 0:
-                return True
-            self.net.zero_grad()
-            loss.backward()
-            max_change = 0
-            for lambda_layer in self.lambdas:
-                grad = lambda_layer.grad
-                with torch.no_grad():
-                    lambda_layer -= grad * self.learning_rate
-                    lambda_layer = torch.max(torch.zeros_like(lambda_layer),
-                                             torch.min(torch.ones_like(lambda_layer), lambda_layer))
-                lambda_layer.requires_grad_()
-                max_change = max(max_change, torch.max(grad))
-                # lambda_layer.grad.zero_()
-            if max_change < self.delta:
-                break
+        dataset = [self.input_zonotope] # can run the optimizer on different zonotopes in general
+                                        # e.g we could try partitioning the zonotopes into smaller zonotopes and verify them separately
+        for inp_zono in dataset:
+            # aaaand actually for now just do this over and over. (TODO: add a source of randomness otherwise this is dumb)
+            # TODO: do something smarter
+            while True:
+                optimizer.zero_grad()
+                out_zono = self.znet(inp_zono, verbose=verbose)
+                loss = self.loss(out_zono)
+                if loss == 0:
+                    return True
+                if verbose:
+                    import torchviz
+                    torchviz.make_dot(loss)
+                loss.backward()
+                optimizer.step()

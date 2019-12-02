@@ -29,13 +29,15 @@ class zNet(nn.Module):
     """
 
     def __init__(self, net):
+        super().__init__()
         self.__net = net
         for p in net.parameters():
             p.requires_grad = False  # avoid doing useless computations
         
         self.zlayers = []
-        out_dim = torch.Size(1, 28, 28) # the in/out_dim of the **previous** layer
+        out_dim = torch.Size([1, 28, 28]) # the in/out_dim of the **previous** layer
         for layer in net.layers:
+            # print(layer, out_dim)
             if isinstance(layer, nn.ReLU):
                 zlayer = zm.zReLU(in_dim=out_dim) # needs to set in_dim right away.
             elif isinstance(layer, nn.Linear):
@@ -60,11 +62,12 @@ class zNet(nn.Module):
 
         # sanity-check the dimensions (i.e check that pyTorch doesn't do black-magic-broadcasting that ends up being compatible but not what we want)
         # Rk: this is not necessary, it's just a cool upside of the fact that we need to store in_dim for each zlayer
-        out_dim = torch.Size(1, 28, 28) # the out_dim of the **previous** layer
-        for zlayer in enumerate(self.zlayers):
+        out_dim = torch.Size([1, 28, 28]) # the out_dim of the **previous** layer
+        for zlayer in self.zlayers:
+            # print(zlayer)
             assert zlayer.in_dim == out_dim
-            out_dim = zlayer.out_dim
-        assert out_dim == torch.Size(10)
+            out_dim = zlayer.out_dim()
+        assert out_dim == torch.Size([10])
 
         self.zonotopes = [None] * (len(self.zlayers) + 1)
 
@@ -72,7 +75,7 @@ class zNet(nn.Module):
         self.relu_ind = []
         for idx, zlayer in enumerate(self.zlayers):
             if isinstance(zlayer, zm.zReLU):
-                self.lambdas.append(zlayer.parameters()) # captures the Parameters (in python, "Object references are passed by value") # TODO: check that this is the case
+                self.lambdas.append(zlayer.parameters()) # captures the nn.Parameters (in python, "Object references are passed by value") # TODO: check that this is the case
                 self.relu_ind.append(idx)
 
     def forward_step(self, zonotope, zlayer, verbose=False):

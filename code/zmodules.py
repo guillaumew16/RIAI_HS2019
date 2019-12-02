@@ -10,10 +10,11 @@ class _zModule(nn.Module):
         in_dim (torch.Size): dimensions of the layer, i.e dimension of the ambiant space of the input zonotope
     """
     def __init__(self):
+        super().__init__()
         self.in_dim = None # can be interpreted as "any"...
 
     def __str__(self):
-        return NotImplemented
+        return super().__str__() + " in_dim=" + str(self.in_dim) + " out_dim=" + str(self.out_dim())
 
     def out_dim(self):
         raise NotImplementedError("Please implement this method")
@@ -31,11 +32,10 @@ class zReLU(_zModule):
         super().__init__()
         self.in_dim = in_dim
         self.__uninitialized = True
-        self.lambda_layer = Parameter(torch.zeros_like(1, *in_dim), requires_grad=True)
-        self.reset_parameters()
+        self.lambda_layer = nn.Parameter(torch.zeros(1, *in_dim), requires_grad=True)
     
     def out_dim(self):
-        return in_dim
+        return self.in_dim
 
     def forward(self, zonotope):
         if self.__uninitialized():
@@ -53,24 +53,29 @@ class zNormalization(_zModule):
         super().__init__()
         self.mean = mean
         self.sigma = sigma
-    def __init__(self, concrete_layer):
-        super().__init__()
-        if not isinstance(concrete_layer, Normalization):
-            raise ValueError("expected a networks.Normalization")
-        self.mean = concrete_layer.mean
-        self.mean = concrete_layer.sigma
+
+    # Python doesn't support __init__ overload
+    # def __init__(self, concrete_layer):
+    #     super().__init__()
+    #     if not isinstance(concrete_layer, Normalization):
+    #         raise ValueError("expected a networks.Normalization")
+    #     self.mean = concrete_layer.mean
+    #     self.mean = concrete_layer.sigma
 
     def out_dim(self):
-        return in_dim
+        return self.in_dim
 
     def forward(self, zonotope):
-        zonotope.normalization()
+        zonotope.normalization(self.mean, self.sigma)
 
 class zFlatten(_zModule):
     def __init__(self):
         super().__init__()
     def out_dim(self):
-        return torch.empty_like(in_dim).numel() # TODO: check whether torch.Size supports a better way to do this...
+        if self.in_dim is None:
+            raise Warning("Attribute self.in_dim should have been initialized, but is still =None. returning out_dim=None")
+            return None
+        return torch.Size([ torch.empty(self.in_dim).numel() ]) # TODO: check whether torch.Size supports a better way to do this...
     def forward(self, zonotope):
         zonotope.flatten()
 
@@ -79,31 +84,36 @@ class zLinear(_zModule):
         super().__init__()
         self.weight = weight
         self.bias = bias
-    def __init__(self, concrete_layer):
-        super().__init__()
-        if not isinstance(concrete_layer, nn.Linear):
-            raise ValueError("expected a nn.Linear")
-        self.weight = concrete_layer.weight
-        self.bias = concrete_layer.bias
+
+    # Python doesn't support __init__ overload
+    # def __init__(self, concrete_layer):
+    #     super().__init__()
+    #     if not isinstance(concrete_layer, nn.Linear):
+    #         raise ValueError("expected a nn.Linear")
+    #     self.weight = concrete_layer.weight
+    #     self.bias = concrete_layer.bias
 
     def out_dim(self):
         # take advantage of this call to make a sanity-check on in_dim
-        assert self.in_dim = self.weight.shape[1]
-        return self.weight.shape[0]
+        assert len(self.in_dim) == 1
+        assert self.in_dim[0] == self.weight.shape[1]
+        return self.weight.shape[:1]
 
     def forward(self, zonotope):
         zonotope.linear_transformation(self.weight, self.bias)
 
 class zConv2d(_zModule):
-    def __init__(self, weight, bias, stride, padding, dilation, groups):
-        super().__init__()
-        self.weight = weight
-        self.bias = bias
-        self.stride = stride
-        self.padding = padding
-        self.dilation = dilation
-        self.groups = groups
-        raise NotImplementedError
+
+    # Python doesn't support __init__ overload
+    # def __init__(self, weight, bias, stride, padding, dilation, groups):
+    #     super().__init__()
+    #     self.weight = weight
+    #     self.bias = bias
+    #     self.stride = stride
+    #     self.padding = padding
+    #     self.dilation = dilation
+    #     self.groups = groups
+    #     raise NotImplementedError
 
     def __init__(self, concrete_layer):
         """
