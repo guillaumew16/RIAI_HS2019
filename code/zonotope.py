@@ -10,16 +10,31 @@ class Zonotope:
     (These are only convenience stuff, not an attempt of "subclassing Tensors". pyTorch functions are always called on the underlying Tensors `a0` and `A`.)
 
     Attributes:
+        Z (torch.Tensor): tensor with shape [1 + nb_error_terms, *<shape of nn layer>].
+            Z[0] corresponds to the center of the zonotope (a0 in the old version).
+            Z[1:] corresponds to the epsilon-coefficient tensor (A in the old version).
+    
+    Old attributes, now accessible as getters:
         A (torch.Tensor): the tensor described in formulas.pdf, with shape [nb_error_terms, *<shape of nn layer>]
         a0 (torch.Tensor): the center of the zonotope, with shape [1, *<shape of nn layer>]
 
-    TODO: it seems wasteful that a0 is of shape [1, *]. In fact a lot of the nn layer operations can be applied to the joint tensor [A, a0]
-    (except for the fact the biases should not be added to A).
+    Args:
+        A_or_Z (torch.Tensor): if the constructor is called with only one argument, then A_or_Z represent Z. Otherwise it represents A.
+        a0 (torch.Tensor, optional)
     """
 
-    def __init__(self, A, a0):
-        self.a0 = a0
-        self.A = A
+    def __init__(self, A_or_Z, a0=None):
+        if a0 is None:
+            self.Z = A_or_Z
+        else:
+            self.Z = torch.cat(a0, A_or_Z, dim=0)
+
+    @property
+    def a0(self):
+        return self.Z[0]
+    @property
+    def A(self):
+        return self.Z[1:]
 
     def __str__(self):
         return "Zonotope with dim={} and nb_error_terms={}".format(self.dim, self.nb_error_terms)
@@ -27,51 +42,48 @@ class Zonotope:
 
     @property
     def dim(self):
-        """Dimension of the ambiant space"""
-        return self.A.shape[1:]
+        """Dimension of the ambient space"""
+        return self.Z.shape[1:]
 
     @property
     def nb_error_terms(self):
-        return self.A.shape[0]
+        return self.Z.shape[0] - 1
 
     def reset(self):
         """Returns a fresh Zonotope with the same data but no bindings to any output tensor"""
-        return Zonotope(self.A.clone().detach(), self.a0.clone().detach())  # cf doc of torch.Tensor.new_tensor()
+        return Zonotope(self.Z.clone().detach())  # cf doc of torch.Tensor.new_tensor()
 
     # Convenience methods
     # ~~~~~~~~~~~~~~~~~~~
 
     def __add__(self, other):
         if isinstance(other, Zonotope):
-            return Zonotope(self.A + other.A, self.a0 + other.a0)
+            return Zonotope(self.Z + other.Z)
         else:
             return Zonotope(self.A, self.a0 + other)
 
     def __neg__(self):
-        return Zonotope(-self.A, -self.a0)
+        return Zonotope(-self.Z)
 
     def __sub__(self, other):
         return self.__add__(-other)
 
     def __mul__(self, other):
         """Multiplication by a constant"""
-        return Zonotope(self.A * other, self.a0 * other)
+        return Zonotope(self.Z * other)
 
     def __getitem__(self, item):
-        """For a flat zonotope (i.e living in a 'flattened' space with shape (n,) ), returns the zonotope of the `item`-th variable."""
-        if len(self.a0.shape) > 2:
+        """For a flat zonotope (i.e living in a 'flattened' space), returns the zonotope of the `item`-th variable."""
+        if len(self.dim) != 1:
             import warnings
-            warnings.warn("Called Zonotope.__getitem__ on an instance with a0.shape={}. \
-                It should only be called on instances living in 'flattened spaces', i.e with a0.shape of the form [1, n].".format(a0.shape))
-        return Zonotope(self.A[:, item:item + 1], self.a0[:, item:item + 1])
+            warnings.warn("Called Zonotope.__getitem__ on an instance with dim={}. \
+                It should only be called on instances living in 'flattened spaces', i.e with dim of the form torch.Size([n]).".format(self.dim))
+        return Zonotope(self.Z[:, item])
 
     def sum(self):
-        """For a flat zonotope (i.e living in a 'flattened' space with shape (n,) ), returns the zonotope of the sum of all variables."""
-        if len(self.a0.shape) > 2:
-            import warnings
-            warnings.warn("Called Zonotope.__getitem__ on an instance with a0.shape={}. \
-                It should only be called on instances living in 'flattened spaces', i.e with a0.shape of the form [1, n].".format(a0.shape))
-        return Zonotope(self.A.sum(1, keepdim=True), self.a0.sum(1, keepdim=True))
+        """Returns the zonotope of the sum of all variables."""
+        dims_to_reduce = list( range(1, len(Z.shape)) )  # sum over all dimensions except the first one (corresponding to error terms' index)
+        return Zonotope(self.Z.sum(dims_to_reduce, keepdim=True))
 
     def lower(self):
         return self.a0 - self.A.abs().sum(dim=0)
@@ -86,7 +98,7 @@ class Zonotope:
 
     def flatten(self):
         """Apply a torch.nn.Flatten() layer to this zonotope."""
-        return Zonotope(torch.nn.Flatten()(self.A), torch.nn.Flatten()(self.a0))
+        return Zonotope(torch.nn.Flatten()(self.Z))
 
     def normalization(self, mean, sigma):
         """Apply a normalization layer to this zonotope.
@@ -94,7 +106,8 @@ class Zonotope:
             mean (torch.Tensor): mean to subtract, of shape [1, 1, 1, 1] (same as in networks.Normalization). (Any shape broadcastable to [1] works too.)
             sigma (torch.Tensor): sigma to divide, of shape [1, 1, 1, 1]
         """
-        return (self - mean) * (1 / sigma)
+        return Zonotope((self.Z - mean) / sigma)
+        # return (self - mean) * (1 / sigma)
 
     def convolution(self, weight, bias, stride, padding, dilation, groups):
         """Apply a convolution layer to this zonotope. The argument types and shapes are the same as the attributes of nn.Conv2d.
@@ -112,7 +125,7 @@ class Zonotope:
         )
 
     def matmul(self, other):
-        return Zonotope(self.A.matmul(other), self.a0.matmul(other))
+        return Zonotope(self.Z.matmul(other))
 
     def linear_transformation(self, W, b):
         return self.matmul(W.t()) + b
@@ -126,11 +139,13 @@ class Zonotope:
         # ignore variables don't require a lambda for ReLU transformation
         intersection_map = ((l < 0) * (u > 0))[0]  # entries s.t l < 0 < u. (implies u-l > 0 so division safe)
 
-        lambda_layer = torch.zeros(self.a0.shape)
+        lambda_layer = torch.zeros([1, *self.dim])
         lambda_layer[:, intersection_map] = u[:, intersection_map] / (
                     u[:, intersection_map] - l[:, intersection_map])  # equivalently, replace "[:,*]" by "[0,*]"
         return lambda_layer
 
+    # TODO: see if we can use the Z form instead of distinguishing A and a0, as we did for the other transformations.
+    # Not much hope though, and arguably it's normal: relu is the hard case.
     def relu(self, lambdas=None):
         """Apply a ReLU layer to this zonotope.
         Args:
@@ -176,7 +191,7 @@ class Zonotope:
         # the upper bound of the relu transformation.
         # So a0 = a0*lambda + mu and A = lambda*A for all the previous epslons and A = mu for the new epslons.
 
-        # If lambda is None we use the vanilla DeepPoly transformation, which means lambda = breaking_point.
+        # If lambda is None we use the vanilla DeepZ transformation, which means lambda = breaking_point.
         if lambdas is None:
             mu[:, intersection_map] = - l[:, intersection_map] * breaking_point / 2
 

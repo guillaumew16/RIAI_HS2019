@@ -41,19 +41,11 @@ class zNet(nn.Module):
             if isinstance(layer, nn.ReLU):
                 zlayer = zm.zReLU(in_dim=out_dim) # needs to set in_dim right away.
             elif isinstance(layer, nn.Linear):
-                zlayer = zm.zLinear(layer.weight, layer.bias)
+                zlayer = zm.zLinear(layer)
             elif isinstance(layer, nn.Conv2d):
                 zlayer = zm.zConv2d(layer)
-                # zlayer = zm.zConv2d(
-                #     weight=layer.weight, 
-                #     bias=layer.bias,
-                #     stride=layer.stride,
-                #     padding=layer.padding,
-                #     dilation=layer.dilation,
-                #     groups=layer.groups
-                # )
             elif isinstance(layer, Normalization):
-                zlayer = zm.zNormalization(layer.mean, layer.sigma)
+                zlayer = zm.zNormalization(layer)
             elif isinstance(layer, nn.Flatten):
                 zlayer = zm.zFlatten(in_dim=out_dim) # needs to set in_dim right away.
             zlayer.in_dim = out_dim

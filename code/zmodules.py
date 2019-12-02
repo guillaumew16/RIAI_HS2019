@@ -9,7 +9,7 @@ from networks import Normalization
 class _zModule(nn.Module):
     """
     Attributes:
-        in_dim (torch.Size): dimensions of the layer, i.e dimension of the ambiant space of the input zonotope
+        in_dim (torch.Size): dimensions of the layer, i.e dimension of the ambient space of the input zonotope
     """
     def __init__(self):
         super().__init__()
@@ -35,7 +35,7 @@ class zReLU(_zModule):
         lambda_layer (nn.Parameter): lambda layer of shape [1, *in_dim] (same as zonotopes' a0.shape)
         __uninitialized (bool): True iff `self.lambda_layer` still holds some dummy values, i.e was not yet initialized to the vanilla DeepZ coefficients
     Args:
-        in_dim (torch.Size): dimensions of the layer, i.e dimension of the ambiant space of the input zonotope (cf _zModule attributes)
+        in_dim (torch.Size): dimensions of the layer, i.e dimension of the ambient space of the input zonotope (cf _zModule attributes)
     """
     def __init__(self, in_dim):
         super().__init__()
@@ -79,7 +79,7 @@ class zFlatten(_zModule):
         return zonotope.flatten()
 
 class zLinear(_zModule):
-    def __init__(self, weight, bias):
+    def __init__(self, layer):
         super().__init__()
         self.weight = weight.detach()
         self.bias = bias.detach()

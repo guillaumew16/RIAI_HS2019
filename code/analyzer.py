@@ -77,13 +77,17 @@ class Analyzer:
 
         # TODO: move this to a unittest or something. Anyway, this has been tested and it works. (DEBUG)
         # a check that self.znet.lambdas is what we want (i.e the set of all the lambdas used as parameters)
-        # this also checks that self.znet only has the lambdas as parameters
-        # for zlayer in self.znet.zlayers:
-        #     print(zlayer)
-        #     for p in zlayer.parameters():
-        #         # with torch.no_grad(): # to see that self.znet.lambdas does indeed reference the same thing
-        #         #     p.fill_(1)
-        #         print(p)
+        # this also checks that self.znet only has the lambdas as active parameters (i.e all others have required_grad=False)
+        # TODO: we put this back in to test the statement just above
+        for zlayer in self.znet.zlayers:
+            print(zlayer)
+            for p in zlayer.parameters():
+                # with torch.no_grad(): # to see that self.znet.lambdas does indeed reference the same thing
+                #     p.fill_(1)
+                if p.requires_grad == True:
+                    print(p)
+                else:
+                    print("some frozen parameter (with requires_grad = False) of shape {}".format(p.shape))
         # for lam in self.znet.lambdas:
         #     # with torch.no_grad(): # to see that self.znet.layers.parameters() does indeed reference the same thing
         #     #     p.fill_(2)
