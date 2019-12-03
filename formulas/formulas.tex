@@ -103,25 +103,49 @@ It suffices to compute the $k+1$ convolutions of A and K, which can be done effi
 
 \section{Loss function}
 
-Output layer: $[o_1, o_2, ... o_n]$
+Output layer: $[o_0, o_2, ... o_9]$ (the logits for the MNIST digit classification)
+
+\subsection{Sum of violations}
 
 Zonotope approximation of verification objective (target t):
-\begin{equation}
-Z = \sum_{i=1}^{n} \max(o_i - o_t)
-\end{equation}
+\begin{equation*}
+Z = \sum_{i=0}^{9} \max(o_i - o_t)
+\end{equation*}
 
 $Z > 0$ only if one or more of the $o_i$ is greater that $o_t$.
 
 In particular if we compute the upper bound on $Z$:
 
-\begin{equation}
+\begin{equation*}
 L = max_\eps Z
-\end{equation}
+\end{equation*}
 
 If $L = 0$ then $o_t \geq o_i \forall i$ which is the property that we want to verify.
 
 Else: $L > 0$ and we could minimize L by gradient descent with respect to lambdas.
 
 In order to do that, we could build the entire Zonotope approximation with pythorch tensors and operators and then use it to compute gradients with respect to the lambdas.
+
+\subsection{Other losses}
+
+Consider $x = (x_i)_i = (o_i - o_t)_{0 \geq i \geq 9}$ (given target t). 
+The robustness property can be verified from the output zonotope $Z$ if $\forall (o_0, ..., o_9) \in Z, x_i \leq 0 \forall i$
+
+We can take as concrete loss function any function $f(x)$ be such that
+\begin{equation*}
+f(x) \leq 0 \implies \forall i, x_i \leq 0
+\end{equation*}
+
+For example:
+\begin{itemize}
+\item the sum of violations $f(x) = x_0^+ + ... + x_9^+$ as described previously
+\item the max violation $f(x) = max_i x_i$
+\item any weighted sum of violations with positive weights $w_0 ... w_9 > 0$
+\end{itemize}
+
+An important criterion is that it should be easy to transform zonotopes, i.e to compute $Z' = f^{\#}(Z)$ (where $Z'$ is the zonotope for the scalar loss).
+For this reason, it seems that the sum of violations is a good choice (though it requires to perform a relu transformations).
+
+Finally, the final loss that is used in the optimizer will be $max_{y \in Z'} y$ i.e the upper bound of Z', same as in the previous subsection.
 
 \end{document}

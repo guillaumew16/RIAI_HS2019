@@ -108,20 +108,27 @@ class zConv2d(_zModule):
         self.__concrete_layer = concrete_layer
         self.weight = concrete_layer.weight.detach()
         self.bias   = concrete_layer.bias.detach()
-        self.stride = concrete_layer.stride # stride is just a tuple of ints
-        self.padding = concrete_layer.padding # padding too
-        self.dilation = concrete_layer.dilation # dilation too
-        self.groups = concrete_layer.groups # groups is just an int
         if concrete_layer.padding_mode != 'zeros':
             raise UserWarning("There is a Conv2d layer with padding_mode != 'zeros', which is not supported by our analyzer (!!!)")
 
     def _get_out_dim(self):
-        # TODO: maybe try to find a better way to do this... 
-        # On the other hand multiplying by 0 is probably optimized out by pyTorch, and anyway the result is cached.
-        # TODO: use the formula given in https://pytorch.org/docs/stable/nn.html#conv2d (section "Shape")
-        dummy_input = torch.zeros(1, *self.in_dim)
-        dummy_output = self.forward(Zonotope(dummy_input, dummy_input)) # 0 mean, 1 error term with coefficients 0
-        return dummy_output.dim
+        # using the formula given in https://pytorch.org/docs/stable/nn.html#conv2d (section "Shape")
+        def make_tuple(x):
+            if isinstance(x, int): return (x, x)
+            else: return x
+        kernel_size = make_tuple(self.__concrete_layer.kernel_size) # torch.nn.Conv2d.kernel_size is int || tuple of int, int
+        stride      = make_tuple(self.__concrete_layer.stride)
+        padding     = make_tuple(self.__concrete_layer.padding)
+        dilation    = make_tuple(self.__concrete_layer.dilation)
+        out_channels = self.__concrete_layer.out_channels
+        h_out = self.in_dim[1] + 2*padding[0] - dilation[0] * (kernel_size[0] - 1) - 1
+        h_out = h_out // stride[0] + 1
+        w_out = self.in_dim[2] + 2*padding[1] - dilation[1] * (kernel_size[1] - 1) - 1
+        w_out = w_out // stride[1] + 1
+        return torch.Size([out_channels, h_out, w_out])
+        # dummy_input = torch.zeros(1, *self.in_dim)
+        # dummy_output = self.forward(Zonotope(dummy_input, dummy_input)) # 0 mean, 1 error term with coefficients 0
+        # return dummy_output.dim
 
     def forward(self, zonotope):
         return zonotope.convolution(self.__concrete_layer)

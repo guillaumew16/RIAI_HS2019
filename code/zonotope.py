@@ -119,7 +119,7 @@ class Zonotope:
         Args:
             conv (torch.nn.Conv2d)"""
         res_Z = conv2d(self.Z, weight=conv.weight, bias=None, stride=conv.stride, padding=conv.padding, dilation=conv.dilation, groups=conv.groups)
-        to_add = torch.zeros_like(res_Z)  # TODO: this tensor can even be stored in linear instead of recomputed every time (for what gain idk). By pushing this function into zmodules.py, it is a natural thing to do.
+        to_add = torch.zeros_like(res_Z)
         to_add[0] = conv.bias.view(*conv.bias.shape, 1, 1) # encapsulates in single pixels (height and width 1)
         return Zonotope(res_Z + to_add)
         # return Zonotope(
@@ -133,7 +133,7 @@ class Zonotope:
             linear (nn.Linear): the linear layer with the same weight and bias as the corresponding concrete layer.
                 In fact, using the concrete layer itself is just fine."""
         res_Z = self.Z.matmul(linear.weight.t())
-        to_add = torch.zeros_like(res_Z)  # TODO: this tensor can even be stored in linear instead of recomputed every time (for what gain idk). By pushing this function into zmodules.py, it is a natural thing to do.
+        to_add = torch.zeros_like(res_Z)
         to_add[0] = linear.bias
         return Zonotope(res_Z + to_add)
         # return Zonotope(

@@ -23,6 +23,9 @@ class Analyzer:
         __net (networks.FullyConnected || networks.Conv): the network to be analyzed (first layer: Normalization). kept for convenience
         __inp (torch.Tensor): a copy of the input point inp. kept for convenience
         __eps (float): a copy of the queried eps. kept for convenience
+        loss_lambda (torch.Variable): the lambdas used in the relu of the loss function, of shape [1, 10].
+            Note that pyTorch's Variable API has been deprecated, so loss_lambda is actually torch.Tensor.
+            Note that they are only useful if the loss function used is the sum of violations, or any other loss function that requires ReLU (cf formulas.pdf)
 
     Args:
         net: see Attributes
@@ -38,6 +41,7 @@ class Analyzer:
         self.__inp = inp
         self.__eps = eps
         self.true_label = true_label
+        # self.loss_lambda = # TODO
 
         self.znet = zNet(net)
 
@@ -58,6 +62,7 @@ class Analyzer:
         self.input_zonotope = Zonotope(A, a0)
 
     def loss(self, output_zonotope):
+        # TODO: try with different loss functions, e.g max violation (which doesn't require relu). cf formulas.pdf
         """Elements x in the last (concrete) layer correspond to logits.
         Args:
             output_zonotope (Zonotope)
@@ -111,7 +116,8 @@ class Analyzer:
 
         # TODO: select optimizer and parameters https://pytorch.org/docs/stable/optim.html. E.g: 
         # optimizer = optim.SGD(self.znet.parameters(), lr=0.01, momentum=0.9)
-        optimizer = optim.Adam(self.znet.parameters(), lr=0.0001)
+        print([self.loss_lambda, *self.znet.lambdas])
+        optimizer = optim.Adam([self.loss_lambda, *self.znet.lambdas], lr=0.0001)
 
         dataset = [self.input_zonotope] # can run the optimizer on different zonotopes in general
                                         # e.g we could try partitioning the zonotopes into smaller zonotopes and verify them separately
@@ -128,14 +134,15 @@ class Analyzer:
                 optimizer.zero_grad()
                 out_zono = self.znet(inp_zono, verbose=verbose)
                 loss = self.loss(out_zono)
-                if loss == 0:
+                if loss == 0: # TODO: floating point problems?
                     return True
                 if verbose:
+                    print("Analyzer.analyze(): current loss:", loss.item())
                     print("Analyzer.analyze(): doing loss.backward() and optimizer.step()")
                 loss.backward()
                 optimizer.step()
 
-                print("loss:\n{}\nout_zono.A:\n{}\nout_zono.a0:\n{}\n".format(loss, out_zono.A, out_zono.a0)) # since we're exiting, we can afford to print the results without cluttering the stdout
+                print("out_zono.A:\n{}\nout_zono.a0:\n{}".format(loss, out_zono.A, out_zono.a0)) # since we're exiting, we can afford to print the results without cluttering the stdout
                 print("For convenience in testing, we exit now, even though we still have time before timeout.")
                 return False # FOR DEBUG (with the current process it's useless to loop endlessly anyway, since we haven't implemented a way to do better than what we can do in a single loop)
 
