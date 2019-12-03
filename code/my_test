@@ -2,27 +2,42 @@
 
 # a little script for quick and dirty testing.
 
-if [[ $# -ne 1 ]]; then
-	echo "Usage: my_test <v || nv> (verbose or not-verbose)"
+if [[ $# -ne 2 ]]; then
+	echo "Usage: my_test <net> <v || nv> (verbose or not-verbose)"
 	exit 0
 else
 	if [[ $1 == "v" ]]; then
         verbosity="--myverbose"
-    else if [[ $1 == "nv" ]]; then
+    elif [[ $1 == "nv" ]]; then
         verbosity=""
     else
-        echo "Usage: my_test <v || nv> (verbose or not-verbose)"
+        echo "Usage: my_test <net> <v || nv> (verbose or not-verbose)"
         exit 0
-    fi fi
+    fi
+    net=$2
 fi
 
-# net=fc1
-# spec="img1_0.07500.txt"
-# net=fc2
-# spec="img1_0.04100.txt"
-net=conv1
-spec="img0_0.00200.txt"
-t=3
+if [[ ${net} == "fc1" ]]; then
+    spec="img1_0.07500.txt"
+elif [[ ${net} == "fc2" ]]; then
+    spec="img1_0.04100.txt"
+# elif [[ ${net} == "fc3" ]]; then # TODO: copy the filenames for the others
+# elif [[ ${net} == "fc4" ]]; then
+# elif [[ ${net} == "fc5" ]]; then
+elif [[ ${net} == "conv1" ]]; then
+    spec="img0_0.00200.txt"
+# elif [[ ${net} == "conv2" ]]; then
+# elif [[ ${net} == "conv3" ]]; then
+# elif [[ ${net} == "conv4" ]]; then
+# elif [[ ${net} == "conv5" ]]; then
+else
+    echo "Usage: my_test <net> <v || nv> (verbose or not-verbose)"
+    echo -e "\tnet must be one of: fc1 fc2 fc3 fc4 fc5 conv1 conv2 conv3 conv4 conv5"
+    echo -e "\tonly fc1 fc2 conv5 supported for now"
+    exit 0
+fi
+
+t=3 # timeout
 
 echo "Evaluating network ${net}..."
 echo -ne "\ttest_cases/${net}/${spec}: \t"

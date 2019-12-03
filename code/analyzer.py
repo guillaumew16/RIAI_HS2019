@@ -93,13 +93,13 @@ class Analyzer:
         #     print(lam)
 
         # FOR DEBUG:
-        self.run_in_parallel()
-        # net_layers = [layer for layer in self.__net.layers]
-        # net_layers.append(nn.ReLU())
-        # net_layers.append(nn.ReLU())
-        # net_layers.append(nn.ReLU())
-        # net_layers = nn.Sequential(*net_layers)
-        # self.run_in_parallel(self.input_zonotope, net)
+        # self.run_in_parallel()
+        net_layers = [layer for layer in self.__net.layers]
+        net_layers.append(nn.ReLU())
+        net_layers.append(nn.ReLU())
+        net_layers.append(nn.ReLU())
+        net = NetByLayers(net_layers)
+        self.run_in_parallel(self.input_zonotope, net)
         import sys
         sys.exit()
 
@@ -128,6 +128,7 @@ class Analyzer:
                 optimizer.step()
 
 
+    # DEBUG: obviously, this shouldn't be run in prod
     def run_in_parallel(self, inp_zono=None, concrete_net=None):
         """A debugging utility. Runs a concrete network and the corresponding zNetwork in parallel to make some checks."""
         if inp_zono is None:
@@ -151,8 +152,8 @@ class Analyzer:
             next_zono = zlayer(next_zono)
             # print(next_point.shape, next_zono.a0.shape)
             print("next_point (ground truth):\n", next_point)
-            # print("next_zono.a0:\n", next_zono.a0)
-            print("next_point - next_zono.a0:\n", next_point - next_zono.a0)
+            print("next_zono.a0:\n", next_zono.a0)
+            # print("next_point - next_zono.a0:\n", next_point - next_zono.a0)
 
 
     def make_dot_loss(self, gv_filename):
@@ -201,3 +202,14 @@ class Analyzer:
         except ImportError as err:
             import warnings
             warnings.warn("torchviz is not installed in the execution environment, so cannot make_dot. Skipping")
+
+
+
+
+# For DEBUG
+class NetByLayers(nn.Module):
+    def __init__(self,layers):
+        super().__init__()
+        self.layers = nn.Sequential(*layers)
+    def forward(self, x):
+        return self.layers(x)

@@ -8,7 +8,7 @@
                 print(self.__net(self.input_zonotope.a0))
                 assert torch.allclose(out_zono.a0, self.__net(self.input_zonotope.a0))
     I determined that the bug is always at the last layer. AND/OR at the relu layer. look into that.
-- move the analyzer script thingy into a utility functino
+    After further tests I'm more and more sure it's because of Zonotope.relu().
 
 Todo before production:
 - check for TODOs in the source
