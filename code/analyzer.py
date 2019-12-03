@@ -23,9 +23,11 @@ class Analyzer:
         __net (networks.FullyConnected || networks.Conv): the network to be analyzed (first layer: Normalization). kept for convenience
         __inp (torch.Tensor): a copy of the input point inp. kept for convenience
         __eps (float): a copy of the queried eps. kept for convenience
-        loss_lambda (torch.Variable): the lambdas used in the relu of the loss function, of shape [1, 10].
-            Note that pyTorch's Variable API has been deprecated, so loss_lambda is actually torch.Tensor.
+        loss_lambda (nn.Parameter): the lambdas used in the relu of the loss function, of shape [1, 10].
+            Note that pytorch.optimize's doc uses Variables (i.e Tensors since pyTorch's Variable API has been deprecated), but in our case we need a wrapper around the data (due to initialization method)
+            Thus we reuse the same initialization pattern as for zReLU's parameters
             Note that they are only useful if the loss function used is the sum of violations, or any other loss function that requires ReLU (cf formulas.pdf)
+        __loss_lambda_uninitialized (bool): True iff `self.loss_lambda` still holds some dummy values, i.e was not yet initialized to the vanilla DeepZ coefficients
 
     Args:
         net: see Attributes
@@ -41,7 +43,9 @@ class Analyzer:
         self.__inp = inp
         self.__eps = eps
         self.true_label = true_label
-        # self.loss_lambda = # TODO
+
+        self.loss_lambda = nn.Parameter(torch.zeros(1, 10), requires_grad=True)
+        self.__loss_lambda_uninitialized = True
 
         self.znet = zNet(net)
 
@@ -62,15 +66,23 @@ class Analyzer:
         self.input_zonotope = Zonotope(A, a0)
 
     def loss(self, output_zonotope):
-        # TODO: try with different loss functions, e.g max violation (which doesn't require relu). cf formulas.pdf
-        """Elements x in the last (concrete) layer correspond to logits.
+        """Returns the max sum of violations over the zonotope. We didn't find any other reasonable choice of loss, cf formulas.pdf.
         Args:
             output_zonotope (Zonotope)
 
-        Returns the sum of violations (cf formulas.pdf):
+        Returns max sum of violations:
             max_{x(=logit) in output_zonotope} sum_{label l s.t logit[l] > logit[true_label]} (logit[l] - logit[true_label])
         """
         assert output_zonotope.dim == torch.Size([10])
+        if self.__loss_lambda_uninitialized:
+            with torch.no_grad():
+                self.loss_lambda.data = output_zonotope.compute_lambda_breaking_point()
+            self.__loss_lambda_uninitialized = False
+        # TODO: for some reason, using the new line (with loss_lambda passed as param to the relu()) makes the optimizer fail
+        # that is, the parameters are not updated at all anymore
+        # that is the case regardless of whether self.loss_lambda is included as param to the optimizer
+        # TODO: found the bug (or at least a source of bug: use a Parameter type and do .data = ...). now must test.
+        # return (output_zonotope - output_zonotope[self.true_label]).relu(self.loss_lambda).sum().upper()
         return (output_zonotope - output_zonotope[self.true_label]).relu().sum().upper()
 
     def analyze(self, verbose=False):
@@ -117,16 +129,18 @@ class Analyzer:
         # TODO: select optimizer and parameters https://pytorch.org/docs/stable/optim.html. E.g: 
         # optimizer = optim.SGD(self.znet.parameters(), lr=0.01, momentum=0.9)
         print([self.loss_lambda, *self.znet.lambdas])
-        optimizer = optim.Adam([self.loss_lambda, *self.znet.lambdas], lr=0.0001)
+        optimizer = optim.Adam([self.loss_lambda, *self.znet.lambdas], lr=0.1)
+        # optimizer = optim.Adam(self.znet.lambdas, lr=0.01)
 
-        dataset = [self.input_zonotope] # can run the optimizer on different zonotopes in general
+        dataset = [self.input_zonotope] # TODO: can run the optimizer on different zonotopes in general
                                         # e.g we could try partitioning the zonotopes into smaller zonotopes and verify them separately
         for inp_zono in dataset:
             if verbose: print("Analyzer.analyze(): performing the optimization on inp_zono: {}".format(inp_zono))
-            # aaaand actually for now just do this over and over. (TODO: add a source of randomness otherwise this is dumb)
+            # aaaand actually for now just run this optimizer ad infinitum.
             # TODO: do something smarter
             while_counter = 0
             while True:
+                print("optimizer parameters", optimizer.__getstate__()['param_groups'][0]['params'])  # debug
                 if verbose:
                     print("Analyzer.analyze(): iteration #{}".format(while_counter))
                 while_counter += 1
@@ -142,9 +156,19 @@ class Analyzer:
                 loss.backward()
                 optimizer.step()
 
-                print("out_zono.A:\n{}\nout_zono.a0:\n{}".format(loss, out_zono.A, out_zono.a0)) # since we're exiting, we can afford to print the results without cluttering the stdout
+                # for DEBUG: end the analysis early
+                # let run for break_at_iter steps
+                break_at_iter = 20
+                if while_counter < break_at_iter:
+                    continue
+                print()
+                print("out_zono.A:\n{}\nout_zono.a0:\n{}".format(out_zono.A, out_zono.a0)) # since we're exiting, we can afford to print the results without cluttering the stdout
+                # cannot use optimizer.state_dict bc it hides information (returns index of param instead of param tensor). had to hack into pytorch.optimize source code to find this
+                print("optimizer parameters", optimizer.__getstate__()['param_groups'][0]['params']) 
+                print("self.loss_lambda", self.loss_lambda)
+                print("self.znet.lambdas", self.znet.lambdas)
                 print("For convenience in testing, we exit now, even though we still have time before timeout.")
-                return False # FOR DEBUG (with the current process it's useless to loop endlessly anyway, since we haven't implemented a way to do better than what we can do in a single loop)
+                return False
 
 
     # DEBUG: obviously, this shouldn't be run in prod

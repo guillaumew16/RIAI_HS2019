@@ -18,10 +18,10 @@ else
 fi
 
 if [[ ${net} == "fc1" ]]; then
-	# spec="img0_0.00200.txt"
+	# spec="img0_0.06000.txt"
 	spec="img1_0.07500.txt"
 elif [[ ${net} == "fc2" ]]; then
-	# spec="img0_0.10000.txt"
+	# spec="img0_0.05500.txt"
 	spec="img1_0.04100.txt"
 elif [[ ${net} == "fc3" ]]; then
  	spec="img0_0.00520.txt"

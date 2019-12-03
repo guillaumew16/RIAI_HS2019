@@ -45,7 +45,7 @@ class Zonotope:
 
     @property
     def dim(self):
-        """Dimension of the ambient space"""
+        """Dimension of the ambient space, i.e shape of nn layer"""
         return self.Z.shape[1:]
     @property
     def nb_error_terms(self):
