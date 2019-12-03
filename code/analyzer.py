@@ -78,20 +78,24 @@ class Analyzer:
         # TODO: move this to a unittest or something. Anyway, this has been tested and it works. (DEBUG)
         # a check that self.znet.lambdas is what we want (i.e the set of all the lambdas used as parameters)
         # this also checks that self.znet only has the lambdas as active parameters (i.e all others have required_grad=False)
-        # TODO: we put this back in to test the statement just above
-        for zlayer in self.znet.zlayers:
-            print(zlayer)
-            for p in zlayer.parameters():
-                # with torch.no_grad(): # to see that self.znet.lambdas does indeed reference the same thing
-                #     p.fill_(1)
-                if p.requires_grad == True:
-                    print(p)
-                else:
-                    print("some frozen parameter (with requires_grad = False) of shape {}".format(p.shape))
+        # for zlayer in self.znet.zlayers:
+        #     print(zlayer)
+        #     for p in zlayer.parameters():
+        #         # with torch.no_grad(): # to see that self.znet.lambdas does indeed reference the same thing
+        #         #     p.fill_(1)
+        #         if p.requires_grad == True:
+        #             print(p)
+        #         else:
+        #             print("some frozen parameter (with requires_grad = False) of shape {}".format(p.shape))
         # for lam in self.znet.lambdas:
         #     # with torch.no_grad(): # to see that self.znet.layers.parameters() does indeed reference the same thing
         #     #     p.fill_(2)
         #     print(lam)
+
+        # FOR DEBUG:
+        self.run_in_parallel(self.input_zonotope)
+        import sys
+        sys.exit()
 
         # TODO: select optimizer and parameters https://pytorch.org/docs/stable/optim.html. E.g: 
         # optimizer = optim.SGD(self.znet.parameters(), lr=0.01, momentum=0.9)
@@ -111,31 +115,30 @@ class Analyzer:
 
                 optimizer.zero_grad()
                 out_zono = self.znet(inp_zono, verbose=verbose)
-
-                # TODO: this is actually really useful. maybe save these few lines into a utility function for debugging for future use?
-                print("self.__net(inp_zono.a0) (ground truth):\n", self.__net(inp_zono.a0))
-                print("self.znet(inp_zono).a0:\n", out_zono.a0)
-                # assert torch.allclose(out_zono.a0, self.__net(inp_zono.a0))
-                next_point = inp_zono.a0
-                next_zono = inp_zono
-                for i in range(len(self.__net.layers)):
-                    layer = self.__net.layers[i]
-                    zlayer = self.znet.zlayers[i]
-                    print(layer, zlayer)
-                    next_point = layer(next_point)
-                    next_zono = zlayer(next_zono)
-                    # print(next_point.shape, next_zono.a0.shape)
-                    # print("next_point (ground truth):\n", next_point)
-                    # print("next_zono.a0:\n", next_zono.a0)
-                    print("next_point - next_zono.a0:\n", next_point - next_zono.a0)
-                import sys
-                sys.exit()
-
                 loss = self.loss(out_zono)
                 if loss == 0:
                     return True
                 loss.backward()
                 optimizer.step()
+
+
+    def run_in_parallel(self, inp_zono):
+        """A debugging utility. Runs the concrete `self.__net` and the zNet `self.znet` in parallel to make some checks."""
+        print("self.__net(inp_zono.a0) (ground truth):\n", self.__net(inp_zono.a0))
+        print("self.znet(inp_zono).a0:\n", self.znet(inp_zono).a0)
+        # assert torch.allclose(out_zono.a0, self.__net(inp_zono.a0))
+        next_point = inp_zono.a0
+        next_zono = inp_zono
+        for i in range(len(self.__net.layers)):
+            layer = self.__net.layers[i]
+            zlayer = self.znet.zlayers[i]
+            print(layer, zlayer)
+            next_point = layer(next_point)
+            next_zono = zlayer(next_zono)
+            # print(next_point.shape, next_zono.a0.shape)
+            print("next_point (ground truth):\n", next_point)
+            # print("next_zono.a0:\n", next_zono.a0)
+            print("next_point - next_zono.a0:\n", next_point - next_zono.a0)
 
 
     def make_dot_loss(self, gv_filename):
