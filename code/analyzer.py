@@ -93,7 +93,13 @@ class Analyzer:
         #     print(lam)
 
         # FOR DEBUG:
-        self.run_in_parallel(self.input_zonotope)
+        self.run_in_parallel()
+        # net_layers = [layer for layer in self.__net.layers]
+        # net_layers.append(nn.ReLU())
+        # net_layers.append(nn.ReLU())
+        # net_layers.append(nn.ReLU())
+        # net_layers = nn.Sequential(*net_layers)
+        # self.run_in_parallel(self.input_zonotope, net)
         import sys
         sys.exit()
 
@@ -122,16 +128,24 @@ class Analyzer:
                 optimizer.step()
 
 
-    def run_in_parallel(self, inp_zono):
-        """A debugging utility. Runs the concrete `self.__net` and the zNet `self.znet` in parallel to make some checks."""
-        print("self.__net(inp_zono.a0) (ground truth):\n", self.__net(inp_zono.a0))
-        print("self.znet(inp_zono).a0:\n", self.znet(inp_zono).a0)
+    def run_in_parallel(self, inp_zono=None, concrete_net=None):
+        """A debugging utility. Runs a concrete network and the corresponding zNetwork in parallel to make some checks."""
+        if inp_zono is None:
+            inp_zono = self.input_zonotope
+        if concrete_net is None:
+            net = self.__net
+            znet = self.znet
+        else:
+            net = concrete_net
+            znet = zNet(concrete_net)
+        # print("net(inp_zono.a0) (ground truth):\n", net(inp_zono.a0))
+        # print("znet(inp_zono).a0:\n", znet(inp_zono).a0)
         # assert torch.allclose(out_zono.a0, self.__net(inp_zono.a0))
         next_point = inp_zono.a0
         next_zono = inp_zono
-        for i in range(len(self.__net.layers)):
-            layer = self.__net.layers[i]
-            zlayer = self.znet.zlayers[i]
+        for i in range(len(net.layers)):
+            layer = net.layers[i]
+            zlayer = znet.zlayers[i]
             print(layer, zlayer)
             next_point = layer(next_point)
             next_zono = zlayer(next_zono)
