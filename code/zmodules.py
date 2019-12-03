@@ -10,6 +10,7 @@ class _zModule(nn.Module):
     """
     Attributes:
         in_dim (torch.Size): dimensions of the layer, i.e dimension of the ambient space of the input zonotope
+        __out_dim (torch.Size): cache for the layer's output dimension
     """
     def __init__(self):
         super().__init__()
@@ -75,7 +76,7 @@ class zFlatten(_zModule):
         super().__init__()
         self.in_dim = in_dim
     def _get_out_dim(self):
-        return torch.Size([ torch.empty(self.in_dim).numel() ]) # TODO: check whether torch.Size supports a better way to do this...
+        return torch.Size([self.in_dim.numel()])
     def forward(self, zonotope):
         return zonotope.flatten()
 
@@ -91,7 +92,10 @@ class zLinear(_zModule):
         # take advantage of this call to make a sanity-check on in_dim. for DEBUG only
         assert len(self.in_dim) == 1
         assert self.in_dim[0] == self.weight.shape[1]
-        return self.weight.shape[:1]
+        # TODO
+        # return self.weight.shape[:1] # this works, but lets try simpler
+        print("in zLinear.__init__(): self.bias.shape", self.bias.shape)
+        return self.bias.shape
 
     def forward(self, zonotope):
         return zonotope.linear_transformation(self.__concrete_layer)

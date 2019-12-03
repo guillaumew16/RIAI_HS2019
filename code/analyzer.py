@@ -93,7 +93,13 @@ class Analyzer:
         #     print(lam)
 
         # FOR DEBUG:
-        # self.run_in_parallel()
+        # self.run_in_parallel()        
+        class NetByLayers(nn.Module):
+            def __init__(self,layers):
+                super().__init__()
+                self.layers = nn.Sequential(*layers)
+            def forward(self, x):
+                return self.layers(x)
         net_layers = [layer for layer in self.__net.layers]
         net_layers.append(nn.ReLU())
         net_layers.append(nn.ReLU())
@@ -153,6 +159,7 @@ class Analyzer:
             # print(next_point.shape, next_zono.a0.shape)
             print("next_point (ground truth):\n", next_point)
             print("next_zono.a0:\n", next_zono.a0)
+            print("next_zono.A:\n", next_zono.A)
             # print("next_point - next_zono.a0:\n", next_point - next_zono.a0)
 
 
@@ -202,14 +209,3 @@ class Analyzer:
         except ImportError as err:
             import warnings
             warnings.warn("torchviz is not installed in the execution environment, so cannot make_dot. Skipping")
-
-
-
-
-# For DEBUG
-class NetByLayers(nn.Module):
-    def __init__(self,layers):
-        super().__init__()
-        self.layers = nn.Sequential(*layers)
-    def forward(self, x):
-        return self.layers(x)

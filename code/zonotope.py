@@ -103,7 +103,7 @@ class Zonotope:
 
     def flatten(self):
         """Apply a torch.nn.Flatten() layer to this zonotope."""
-        return Zonotope(torch.nn.Flatten()(self.Z))
+        return Zonotope(self.Z.flatten(start_dim=1))  # preserve error-term-index dimension. (strictly equivalent to torch.nn.Flatten()(self.Z))
 
     def normalization(self, mean, sigma):
         """Apply a normalization layer to this zonotope.
@@ -111,9 +111,8 @@ class Zonotope:
             mean (torch.Tensor): mean to subtract, of shape [1, 1, 1, 1] (same as in networks.Normalization). (Any shape broadcastable to [1] works too.)
             sigma (torch.Tensor): sigma to divide, of shape [1, 1, 1, 1]
         """
-        # return Zonotope(self.A / sigma, (self.a0 - mean) / sigma)
-        # return Zonotope(self.A / sigma, (self.a0 - mean) / sigma)
-        return (self - mean) * (1 / sigma)
+        return Zonotope(self.A / sigma, (self.a0 - mean) / sigma)
+        # return (self - mean) * (1 / sigma)
 
     def convolution(self, conv):
         """Apply a convolution layer to this zonotope.
@@ -129,7 +128,11 @@ class Zonotope:
         Args: 
             linear (nn.Linear): the linear layer with the same weight and bias as the corresponding concrete layer.
                 In fact, using the concrete layer itself is just fine."""
-        return Zonotope(linear(self.Z))
+        # TODO: I found the bug. now test and update todo.txt
+        return Zonotope(
+            self.A.matmul(linear.weight.t()), # TODO: check that .t() is good
+            linear(self.a0)
+        )
 
     def compute_lambda_breaking_point(self):
         """Returns the lambda coefficients used by the vanilla DeepZ.
@@ -147,6 +150,7 @@ class Zonotope:
 
     # TODO: see if we can use the Z form instead of distinguishing A and a0, as we did for the other transformations.
     # Not much hope though, and arguably it's normal: relu is the hard case.
+    # TODO: debug this 
     def relu(self, lambdas=None):
         """Apply a ReLU layer to this zonotope.
         Args:
