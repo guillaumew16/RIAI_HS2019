@@ -112,9 +112,24 @@ class Analyzer:
                 optimizer.zero_grad()
                 out_zono = self.znet(inp_zono, verbose=verbose)
 
-                print(out_zono.a0)
-                print(self.__net(self.input_zonotope.a0))
-                assert torch.allclose(out_zono.a0, self.__net(self.input_zonotope.a0))
+                # TODO: this is actually really useful. maybe save these few lines into a utility function for debugging for future use?
+                print("self.__net(inp_zono.a0) (ground truth):\n", self.__net(inp_zono.a0))
+                print("self.znet(inp_zono).a0:\n", out_zono.a0)
+                # assert torch.allclose(out_zono.a0, self.__net(inp_zono.a0))
+                next_point = inp_zono.a0
+                next_zono = inp_zono
+                for i in range(len(self.__net.layers)):
+                    layer = self.__net.layers[i]
+                    zlayer = self.znet.zlayers[i]
+                    print(layer, zlayer)
+                    next_point = layer(next_point)
+                    next_zono = zlayer(next_zono)
+                    # print(next_point.shape, next_zono.a0.shape)
+                    # print("next_point (ground truth):\n", next_point)
+                    # print("next_zono.a0:\n", next_zono.a0)
+                    print("next_point - next_zono.a0:\n", next_point - next_zono.a0)
+                import sys
+                sys.exit()
 
                 loss = self.loss(out_zono)
                 if loss == 0:

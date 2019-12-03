@@ -64,7 +64,8 @@ class Zonotope:
             assert other.dim == torch.Size([1]) or self.dim == other.dim  # keep tight control over the broadcasting magic, bc I'm not certain how it works
             return Zonotope(self.Z + other.Z)
         else:
-            assert not isinstance(other, torch.Tensor) or self.a0.shape == other.shape # avoid weird broadcasting magic
+            assert not isinstance(other, torch.Tensor) or other.numel() == 1 \
+                or other.shape == self.dim or other.shape == self.a0.shape  # keep tight control over the broadcasting magic
             return Zonotope(self.A, self.a0 + other)
 
     def __neg__(self):
@@ -80,8 +81,7 @@ class Zonotope:
     def __getitem__(self, item):
         """For a flat zonotope (i.e living in a 'flattened' space), returns the zonotope of the `item`-th variable."""
         if len(self.dim) != 1:
-            import warnings
-            warnings.warn("Called Zonotope.__getitem__ on an instance with dim={}. \
+            raise UserWarning("Called Zonotope.__getitem__ on an instance with dim={}. \
                 It should only be called on instances living in 'flattened spaces', i.e with dim of the form torch.Size([n]).".format(self.dim))
         return Zonotope(self.Z[:, item].reshape(-1, 1))
 
@@ -111,8 +111,9 @@ class Zonotope:
             mean (torch.Tensor): mean to subtract, of shape [1, 1, 1, 1] (same as in networks.Normalization). (Any shape broadcastable to [1] works too.)
             sigma (torch.Tensor): sigma to divide, of shape [1, 1, 1, 1]
         """
-        return Zonotope((self.Z - mean) / sigma)
-        # return (self - mean) * (1 / sigma)
+        # return Zonotope(self.A / sigma, (self.a0 - mean) / sigma)
+        # return Zonotope(self.A / sigma, (self.a0 - mean) / sigma)
+        return (self - mean) * (1 / sigma)
 
     def convolution(self, conv):
         """Apply a convolution layer to this zonotope.
