@@ -118,6 +118,7 @@ class zConv2d(_zModule):
     def _get_out_dim(self):
         # TODO: maybe try to find a better way to do this... 
         # On the other hand multiplying by 0 is probably optimized out by pyTorch, and anyway the result is cached.
+        # TODO: use the formula given in https://pytorch.org/docs/stable/nn.html#conv2d (section "Shape")
         dummy_input = torch.zeros(1, *self.in_dim)
         dummy_output = self.forward(Zonotope(dummy_input, dummy_input)) # 0 mean, 1 error term with coefficients 0
         return dummy_output.dim

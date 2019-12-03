@@ -118,20 +118,28 @@ class Zonotope:
         """Apply a convolution layer to this zonotope.
         Args:
             conv (torch.nn.Conv2d)"""
-        return Zonotope(
-            conv2d(self.A, weight=conv.weight, bias=None, stride=conv.stride, padding=conv.padding, dilation=conv.dilation, groups=conv.groups),
-            conv2d(self.a0, weight=conv.weight, bias=conv.bias, stride=conv.stride, padding=conv.padding, dilation=conv.dilation, groups=conv.groups)
-        )
+        res_Z = conv2d(self.Z, weight=conv.weight, bias=None, stride=conv.stride, padding=conv.padding, dilation=conv.dilation, groups=conv.groups)
+        to_add = torch.zeros_like(res_Z)  # TODO: this tensor can even be stored in linear instead of recomputed every time (for what gain idk). By pushing this function into zmodules.py, it is a natural thing to do.
+        to_add[0] = conv.bias.view(*conv.bias.shape, 1, 1) # encapsulates in single pixels (height and width 1)
+        return Zonotope(res_Z + to_add)
+        # return Zonotope(
+        #     conv2d(self.A, weight=conv.weight, bias=None, stride=conv.stride, padding=conv.padding, dilation=conv.dilation, groups=conv.groups),
+        #     conv2d(self.a0, weight=conv.weight, bias=conv.bias, stride=conv.stride, padding=conv.padding, dilation=conv.dilation, groups=conv.groups)
+        # )
 
     def linear_transformation(self, linear):
         """Apply a linear layer to this zonotope.
         Args: 
             linear (nn.Linear): the linear layer with the same weight and bias as the corresponding concrete layer.
                 In fact, using the concrete layer itself is just fine."""
-        return Zonotope(
-            self.A.matmul(linear.weight.t()),
-            linear(self.a0)
-        )
+        res_Z = self.Z.matmul(linear.weight.t())
+        to_add = torch.zeros_like(res_Z)  # TODO: this tensor can even be stored in linear instead of recomputed every time (for what gain idk). By pushing this function into zmodules.py, it is a natural thing to do.
+        to_add[0] = linear.bias
+        return Zonotope(res_Z + to_add)
+        # return Zonotope(
+        #     self.A.matmul(linear.weight.t()),
+        #     linear(self.a0)
+        # )
 
     def compute_lambda_breaking_point(self):
         """Returns the lambda coefficients used by the vanilla DeepZ.

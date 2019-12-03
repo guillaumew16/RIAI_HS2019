@@ -135,6 +135,7 @@ class Analyzer:
                 loss.backward()
                 optimizer.step()
 
+                print("loss:\n{}\nout_zono.A:\n{}\nout_zono.a0:\n{}\n".format(loss, out_zono.A, out_zono.a0)) # since we're exiting, we can afford to print the results without cluttering the stdout
                 print("For convenience in testing, we exit now, even though we still have time before timeout.")
                 return False # FOR DEBUG (with the current process it's useless to loop endlessly anyway, since we haven't implemented a way to do better than what we can do in a single loop)
 
