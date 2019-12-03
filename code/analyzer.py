@@ -111,6 +111,11 @@ class Analyzer:
 
                 optimizer.zero_grad()
                 out_zono = self.znet(inp_zono, verbose=verbose)
+
+                print(out_zono.a0)
+                print(self.__net(self.input_zonotope.a0))
+                assert torch.allclose(out_zono.a0, self.__net(self.input_zonotope.a0))
+
                 loss = self.loss(out_zono)
                 if loss == 0:
                     return True
