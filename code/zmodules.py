@@ -92,9 +92,6 @@ class zLinear(_zModule):
         # take advantage of this call to make a sanity-check on in_dim. for DEBUG only
         assert len(self.in_dim) == 1
         assert self.in_dim[0] == self.weight.shape[1]
-        # TODO
-        # return self.weight.shape[:1] # this works, but lets try simpler
-        print("in zLinear.__init__(): self.bias.shape", self.bias.shape)
         return self.bias.shape
 
     def forward(self, zonotope):

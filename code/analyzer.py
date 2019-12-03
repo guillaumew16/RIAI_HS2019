@@ -94,20 +94,20 @@ class Analyzer:
 
         # FOR DEBUG:
         # self.run_in_parallel()        
-        class NetByLayers(nn.Module):
-            def __init__(self,layers):
-                super().__init__()
-                self.layers = nn.Sequential(*layers)
-            def forward(self, x):
-                return self.layers(x)
-        net_layers = [layer for layer in self.__net.layers]
-        net_layers.append(nn.ReLU())
-        net_layers.append(nn.ReLU())
-        net_layers.append(nn.ReLU())
-        net = NetByLayers(net_layers)
-        self.run_in_parallel(self.input_zonotope, net)
-        import sys
-        sys.exit()
+        # class NetByLayers(nn.Module):
+        #     def __init__(self,layers):
+        #         super().__init__()
+        #         self.layers = nn.Sequential(*layers)
+        #     def forward(self, x):
+        #         return self.layers(x)
+        # net_layers = [layer for layer in self.__net.layers]
+        # net_layers.append(nn.ReLU())
+        # net_layers.append(nn.ReLU())
+        # net_layers.append(nn.ReLU())
+        # net = NetByLayers(net_layers)
+        # self.run_in_parallel(self.input_zonotope, net)
+        # import sys
+        # sys.exit()
 
         # TODO: select optimizer and parameters https://pytorch.org/docs/stable/optim.html. E.g: 
         # optimizer = optim.SGD(self.znet.parameters(), lr=0.01, momentum=0.9)
@@ -130,8 +130,13 @@ class Analyzer:
                 loss = self.loss(out_zono)
                 if loss == 0:
                     return True
+                if verbose:
+                    print("Analyzer.analyze(): doing loss.backward() and optimizer.step()")
                 loss.backward()
                 optimizer.step()
+
+                print("For convenience in testing, we exit now, even though we still have time before timeout.")
+                return False # FOR DEBUG (with the current process it's useless to loop endlessly anyway, since we haven't implemented a way to do better than what we can do in a single loop)
 
 
     # DEBUG: obviously, this shouldn't be run in prod

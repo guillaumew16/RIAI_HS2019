@@ -2,13 +2,6 @@
 - Test and make fixes for convolutional networks
 - When noticed, mark suspicious lines as TODO or DEBUG with a comment
 - Reduce the size of the computation graph of loss and znet
-- Debug the new implementation of Zonotope (it yields different nb_error_terms than the previous implementation)
-    The sanity check in analyzer.py (see below) seems to indicate that the previous implementation was correct and it's indeed this one that's bugged
-                print(out_zono.a0)
-                print(self.__net(self.input_zonotope.a0))
-                assert torch.allclose(out_zono.a0, self.__net(self.input_zonotope.a0))
-    I determined that the bug is always at the last layer. AND/OR at the relu layer. look into that.
-    After further tests I'm more and more sure it's because of Zonotope.relu().
 
 Todo before production:
 - check for TODOs in the source

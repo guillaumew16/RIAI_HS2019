@@ -7,34 +7,50 @@ if [[ $# -ne 2 ]]; then
 	exit 0
 else
 	if [[ $1 == "v" ]]; then
-        verbosity="--myverbose"
-    elif [[ $1 == "nv" ]]; then
-        verbosity=""
-    else
-        echo "Usage: my_test <net> <v || nv> (verbose or not-verbose)"
-        exit 0
-    fi
-    net=$2
+		verbosity="--myverbose"
+	elif [[ $1 == "nv" ]]; then
+		verbosity=""
+	else
+		echo "Usage: my_test <net> <v || nv> (verbose or not-verbose)"
+		exit 0
+	fi
+	net=$2
 fi
 
 if [[ ${net} == "fc1" ]]; then
-    spec="img1_0.07500.txt"
+	# spec="img0_0.00200.txt"
+	spec="img1_0.07500.txt"
 elif [[ ${net} == "fc2" ]]; then
-    spec="img1_0.04100.txt"
-# elif [[ ${net} == "fc3" ]]; then # TODO: copy the filenames for the others
-# elif [[ ${net} == "fc4" ]]; then
-# elif [[ ${net} == "fc5" ]]; then
+	# spec="img0_0.10000.txt"
+	spec="img1_0.04100.txt"
+elif [[ ${net} == "fc3" ]]; then
+ 	spec="img0_0.00520.txt"
+ 	spec="img1_0.00900.txt"
+elif [[ ${net} == "fc4" ]]; then
+ 	spec="img0_0.12300.txt"
+ 	spec="img1_0.12000.txt"
+elif [[ ${net} == "fc5" ]]; then
+	spec="img0_0.08000.txt"
+	spec="img1_0.07200.txt"
 elif [[ ${net} == "conv1" ]]; then
-    spec="img0_0.00200.txt"
-# elif [[ ${net} == "conv2" ]]; then
-# elif [[ ${net} == "conv3" ]]; then
-# elif [[ ${net} == "conv4" ]]; then
-# elif [[ ${net} == "conv5" ]]; then
+ 	spec="img0_0.00200.txt"
+	# spec="img1_0.02520.txt"
+elif [[ ${net} == "conv2" ]]; then
+ 	spec="img0_0.10000.txt"
+ 	spec="img1_0.08200.txt"
+elif [[ ${net} == "conv3" ]]; then
+ 	spec="img0_0.07700.txt"
+ 	spec="img1_0.09100.txt"
+elif [[ ${net} == "conv4" ]]; then
+ 	spec="img0_0.01240.txt"
+ 	spec="img1_0.12300.txt"
+elif [[ ${net} == "conv5" ]]; then
+ 	spec="img0_0.18500.txt"
+ 	spec="img1_0.21000.txt"
 else
-    echo "Usage: my_test <net> <v || nv> (verbose or not-verbose)"
-    echo -e "\tnet must be one of: fc1 fc2 fc3 fc4 fc5 conv1 conv2 conv3 conv4 conv5"
-    echo -e "\tonly fc1 fc2 conv5 supported for now"
-    exit 0
+	echo "Usage: my_test <net> <v || nv> (verbose or not-verbose)"
+	echo -e "\tnet must be one of: fc1 fc2 fc3 fc4 fc5 conv1 conv2 conv3 conv4 conv5"
+	exit 0
 fi
 
 t=3 # timeout

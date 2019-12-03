@@ -128,9 +128,8 @@ class Zonotope:
         Args: 
             linear (nn.Linear): the linear layer with the same weight and bias as the corresponding concrete layer.
                 In fact, using the concrete layer itself is just fine."""
-        # TODO: I found the bug. now test and update todo.txt
         return Zonotope(
-            self.A.matmul(linear.weight.t()), # TODO: check that .t() is good
+            self.A.matmul(linear.weight.t()),
             linear(self.a0)
         )
 
@@ -150,7 +149,6 @@ class Zonotope:
 
     # TODO: see if we can use the Z form instead of distinguishing A and a0, as we did for the other transformations.
     # Not much hope though, and arguably it's normal: relu is the hard case.
-    # TODO: debug this 
     def relu(self, lambdas=None):
         """Apply a ReLU layer to this zonotope.
         Args:
