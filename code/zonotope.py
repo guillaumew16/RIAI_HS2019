@@ -16,6 +16,7 @@ class Zonotope:
     
     Old attributes, now accessible as getters:
         A (torch.Tensor): the tensor described in formulas.pdf, with shape [nb_error_terms, *<shape of nn layer>]
+            Note that we do NOT support constant zonotopes, i.e there must be >= 1 error terms. (Almost everything would work, but relu() would be even trickier.)
         a0 (torch.Tensor): the center of the zonotope, with shape [1, *<shape of nn layer>]
 
     Args:
@@ -27,11 +28,13 @@ class Zonotope:
         if a0 is None:
             self.Z = A_or_Z
         else:
-            self.Z = torch.cat(a0, A_or_Z, dim=0)
+            assert a0.shape[1:] == A_or_Z.shape[1:]
+            self.Z = torch.cat([a0, A_or_Z], dim=0)
+        assert self.nb_error_terms >= 1
 
     @property
     def a0(self):
-        return self.Z[0]
+        return self.Z[:1]
     @property
     def A(self):
         return self.Z[1:]
@@ -44,7 +47,6 @@ class Zonotope:
     def dim(self):
         """Dimension of the ambient space"""
         return self.Z.shape[1:]
-
     @property
     def nb_error_terms(self):
         return self.Z.shape[0] - 1
@@ -58,8 +60,11 @@ class Zonotope:
 
     def __add__(self, other):
         if isinstance(other, Zonotope):
+            assert self.nb_error_terms == other.nb_error_terms
+            assert other.dim == torch.Size([1]) or self.dim == other.dim  # keep tight control over the broadcasting magic, bc I'm not certain how it works
             return Zonotope(self.Z + other.Z)
         else:
+            assert not isinstance(other, torch.Tensor) or self.a0.shape == other.shape # avoid weird broadcasting magic
             return Zonotope(self.A, self.a0 + other)
 
     def __neg__(self):
@@ -78,11 +83,11 @@ class Zonotope:
             import warnings
             warnings.warn("Called Zonotope.__getitem__ on an instance with dim={}. \
                 It should only be called on instances living in 'flattened spaces', i.e with dim of the form torch.Size([n]).".format(self.dim))
-        return Zonotope(self.Z[:, item])
+        return Zonotope(self.Z[:, item].reshape(-1, 1))
 
     def sum(self):
         """Returns the zonotope of the sum of all variables."""
-        dims_to_reduce = list( range(1, len(Z.shape)) )  # sum over all dimensions except the first one (corresponding to error terms' index)
+        dims_to_reduce = list( range(1, len(self.Z.shape)) )  # sum over all dimensions except the first one (corresponding to error terms' index)
         return Zonotope(self.Z.sum(dims_to_reduce, keepdim=True))
 
     def lower(self):
@@ -109,26 +114,21 @@ class Zonotope:
         return Zonotope((self.Z - mean) / sigma)
         # return (self - mean) * (1 / sigma)
 
-    def convolution(self, weight, bias, stride, padding, dilation, groups):
-        """Apply a convolution layer to this zonotope. The argument types and shapes are the same as the attributes of nn.Conv2d.
+    def convolution(self, conv):
+        """Apply a convolution layer to this zonotope.
         Args:
-            weight (torch.Tensor)
-            bias (torch.Tensor): tensor of shape =`self.dim` (or [1, *`self.dim`])
-            stride (int || tuple of int, int)
-            padding (int || tuple of int, int)
-            dilation (int || tuple of int, int)
-            groups (int)
-        """
+            conv (torch.nn.Conv2d)"""
         return Zonotope(
-            conv2d(self.A, weight=weight, bias=None, stride=stride, padding=padding, dilation=dilation, groups=groups),
-            conv2d(self.a0, weight=weight, bias=bias, stride=stride, padding=padding, dilation=dilation, groups=groups)
+            conv2d(self.A, weight=conv.weight, bias=None, stride=conv.stride, padding=conv.padding, dilation=conv.dilation, groups=conv.groups),
+            conv2d(self.a0, weight=conv.weight, bias=conv.bias, stride=conv.stride, padding=conv.padding, dilation=conv.dilation, groups=conv.groups)
         )
 
-    def matmul(self, other):
-        return Zonotope(self.Z.matmul(other))
-
-    def linear_transformation(self, W, b):
-        return self.matmul(W.t()) + b
+    def linear_transformation(self, linear):
+        """Apply a linear layer to this zonotope.
+        Args: 
+            linear (nn.Linear): the linear layer with the same weight and bias as the corresponding concrete layer.
+                In fact, using the concrete layer itself is just fine."""
+        return Zonotope(linear(self.Z))
 
     def compute_lambda_breaking_point(self):
         """Returns the lambda coefficients used by the vanilla DeepZ.

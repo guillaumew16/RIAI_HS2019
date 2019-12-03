@@ -17,7 +17,8 @@ class _zModule(nn.Module):
         self.__out_dim = None
 
     def __str__(self):
-        return super().__str__() + " in_dim={} out_dim={}".format(self.in_dim, self.out_dim())
+        return super().__str__().split("(")[0] \
+            + " in_dim={} out_dim={}".format( list(self.in_dim), list(self.out_dim()) )
 
     def out_dim(self):
         if self.__out_dim is None:
@@ -78,51 +79,47 @@ class zFlatten(_zModule):
     def forward(self, zonotope):
         return zonotope.flatten()
 
+"""For linear layers, the constructor expects the concrete layer directly."""
 class zLinear(_zModule):
-    def __init__(self, layer):
+    def __init__(self, concrete_layer):
         super().__init__()
-        self.weight = weight.detach()
-        self.bias = bias.detach()
+        self.__concrete_layer = concrete_layer
+        self.weight = concrete_layer.weight.detach()
+        self.bias = concrete_layer.bias.detach()
+        
     def _get_out_dim(self):
         # take advantage of this call to make a sanity-check on in_dim. for DEBUG only
         assert len(self.in_dim) == 1
         assert self.in_dim[0] == self.weight.shape[1]
         return self.weight.shape[:1]
+
     def forward(self, zonotope):
-        return zonotope.linear_transformation(self.weight, self.bias)
+        return zonotope.linear_transformation(self.__concrete_layer)
 
+"""For convolution layers, the constructor expects the concrete layer directly."""
 class zConv2d(_zModule):
-    # Python doesn't support __init__ overload
-    # def __init__(self, weight, bias, stride, padding, dilation, groups):
-    #     super().__init__()
-    #     self.weight = weight
-    #     self.bias = bias
-    #     self.stride = stride
-    #     self.padding = padding
-    #     self.dilation = dilation
-    #     self.groups = groups
-    #     raise NotImplementedError
-
     def __init__(self, concrete_layer):
         """
         Args:
             conv_layer (nn.Conv2d): the corresponding layer in the concrete
         """
         super().__init__()
+        self.__concrete_layer = concrete_layer
         self.weight = concrete_layer.weight.detach()
         self.bias   = concrete_layer.bias.detach()
         self.stride = concrete_layer.stride # stride is just a tuple of ints
         self.padding = concrete_layer.padding # padding too
         self.dilation = concrete_layer.dilation # dilation too
         self.groups = concrete_layer.groups # groups is just an int
+        if concrete_layer.padding_mode != 'zeros':
+            raise UserWarning("There is a Conv2d layer with padding_mode != 'zeros', which is not supported by our analyzer (!!!)")
 
     def _get_out_dim(self):
         # TODO: maybe try to find a better way to do this... 
         # On the other hand multiplying by 0 is probably optimized out by pyTorch, and anyway the result is cached.
         dummy_input = torch.zeros(1, *self.in_dim)
-        dummy_output = self.forward(Zonotope(A=dummy_input, a0=dummy_input))
-        self.__out_dim = dummy_output.dim
-        return self.__out_dim
+        dummy_output = self.forward(Zonotope(dummy_input, dummy_input)) # 0 mean, 1 error term with coefficients 0
+        return dummy_output.dim
 
     def forward(self, zonotope):
-        return zonotope.convolution(self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
+        return zonotope.convolution(self.__concrete_layer)

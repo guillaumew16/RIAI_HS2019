@@ -34,7 +34,7 @@ class Analyzer:
     def __init__(self, net, inp, eps, true_label):
         self.__net = net
         for p in net.parameters():
-            p.requires_grad = False  # avoid doing useless computations
+            p.requires_grad = False  # freeze the concrete network layers, to avoid doing useless computations
         self.__inp = inp
         self.__eps = eps
         self.true_label = true_label
@@ -55,7 +55,7 @@ class Analyzer:
         mask = torch.ones(*inp.shape[1:], dtype=torch.bool)
 
         A[:, mask] = torch.diag(((upper - lower) / 2).reshape(-1))
-        self.input_zonotope = Zonotope(A=A, a0=a0)
+        self.input_zonotope = Zonotope(A, a0)
 
     def loss(self, output_zonotope):
         """Elements x in the last (concrete) layer correspond to logits.
@@ -124,10 +124,7 @@ class Analyzer:
         Returns the corresponding graphviz.Digraph object."""
         try:
             import torchviz
-            inp_zono = Zonotope(
-                A=torch.zeros_like(self.input_zonotope.A),
-                a0=torch.zeros_like(self.input_zonotope.a0)
-            )
+            inp_zono = Zonotope(torch.zeros_like(self.input_zonotope.Z))
             out_zono = self.znet(inp_zono)
             loss = self.loss(out_zono)
             dot = torchviz.make_dot(loss)
@@ -141,10 +138,7 @@ class Analyzer:
         """Visualize the computation graph of the zNet."""
         try:
             import torchviz
-            inp_zono = Zonotope(
-                A=torch.zeros_like(self.input_zonotope.A),
-                a0=torch.zeros_like(self.input_zonotope.a0)
-            )
+            inp_zono = Zonotope(torch.zeros_like(self.input_zonotope.Z))
             out_zono = self.znet(inp_zono)
             out_aggr = torch.cat([out_zono.A, out_zono.a0], dim=0)
             dot = torchviz.make_dot(out_aggr)

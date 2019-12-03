@@ -6,4 +6,5 @@
 Todo before production:
 - check for TODOs in the source
 - remove or review lines marked with a "DEBUG" comment
+- make sure to ignore asserts, i.e run with "-O" flag
 - and obviously review the whole thing again

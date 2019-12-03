@@ -41,11 +41,11 @@ class zNet(nn.Module):
             if isinstance(layer, nn.ReLU):
                 zlayer = zm.zReLU(in_dim=out_dim) # needs to set in_dim right away.
             elif isinstance(layer, nn.Linear):
-                zlayer = zm.zLinear(layer)
+                zlayer = zm.zLinear(layer) # the constructor expects the concrete layer directly
             elif isinstance(layer, nn.Conv2d):
-                zlayer = zm.zConv2d(layer)
+                zlayer = zm.zConv2d(layer) # the constructor expects the concrete layer directly
             elif isinstance(layer, Normalization):
-                zlayer = zm.zNormalization(layer)
+                zlayer = zm.zNormalization(layer.mean, layer.sigma)
             elif isinstance(layer, nn.Flatten):
                 zlayer = zm.zFlatten(in_dim=out_dim) # needs to set in_dim right away.
             zlayer.in_dim = out_dim
@@ -57,9 +57,9 @@ class zNet(nn.Module):
         out_dim = torch.Size([1, 28, 28]) # the out_dim of the **previous** layer
         for zlayer in self.zlayers:
             # print(zlayer)
-            assert zlayer.in_dim == out_dim # DEBUG
+            assert zlayer.in_dim == out_dim
             out_dim = zlayer.out_dim()
-        assert out_dim == torch.Size([10]) # DEBUG
+        assert out_dim == torch.Size([10])
 
         self.zonotopes = [None] * (len(self.zlayers) + 1)
 
