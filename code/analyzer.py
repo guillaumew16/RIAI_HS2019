@@ -106,7 +106,7 @@ class Analyzer:
         
         # DEBUG
         # zm.zReLU has the feature that setting the requires_gradient to False makes us use DeepZ. Here we test that.
-        self.zloss.logit_lambdas.requires_grad = True
+        # self.zloss.logit_lambdas.requires_grad = False
 
         dataset = [self.input_zonotope] # TODO: can run the optimizer on different zonotopes in general
                                         # e.g we could try partitioning the zonotopes into smaller zonotopes and verify them separately
@@ -119,18 +119,18 @@ class Analyzer:
                 # print("optimizer parameters", optimizer.__getstate__()['param_groups'][0]['params'])  # DEBUG
                 if verbose:
                     print("Analyzer.analyze(): iteration #{}".format(while_counter))
-                while_counter += 1
-
                 optimizer.zero_grad()
                 out_zono = self.znet(inp_zono, verbose=verbose)
-                loss = self.zloss(out_zono)
+                loss = self.zloss(out_zono, verbose=verbose)
                 if loss <= 0: # TODO: floating point problems? (there is indeed still a pb here, since zMaxSumOfViolations is non-negative.)
+                    if verbose: print("Analyzer.analyze(): found loss<=0 (loss={}) after {} iterations. The property is proved.".format(loss.item(), while_counter))
                     return True
                 if verbose:
                     print("Analyzer.analyze(): current loss:", loss.item())
                     print("Analyzer.analyze(): doing loss.backward() and optimizer.step()")
                 loss.backward()
                 optimizer.step()
+                while_counter += 1
 
                 # for DEBUG: end the analysis early
                 # let run for break_at_iter steps

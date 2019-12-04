@@ -153,12 +153,19 @@ class Zonotope:
         l = self.lower()
         u = self.upper()
 
-        # ignore variables don't require a lambda for ReLU transformation
-        intersection_map = ((l < 0) * (u > 0))[0]  # entries s.t l < 0 < u. (implies u-l > 0 so division safe)
+        # construct update_map, a boolean mask of shape [1, <*shape of nn layer>], i.e the same as lambda_layer, u, l
+        # Option 1: intersection map, i.e we ignore variables don't require a lambda for ReLU transformation (set the corresponding lambda to 0)
+        intersection_map = ((l < 0) * (u > 0))  # entries s.t l < 0 < u. (implies u-l > 0 so division safe)
+        # Option 2: full initialization map, i.e just make sure the division is safe
+        nonzero_map = (u - l != 0)
+
+        # TODO: test whether using the full initialization map helps. So far I found one (and only one) test case where it did (fc5 on fc5/img0)
+        # update_map = intersection_map
+        update_map = nonzero_map
 
         lambda_layer = torch.zeros([1, *self.dim])
-        lambda_layer[:, intersection_map] = u[:, intersection_map] / (
-                    u[:, intersection_map] - l[:, intersection_map])  # equivalently, replace "[:,*]" by "[0,*]"
+        lambda_layer[update_map] = u[update_map] / (
+                    u[update_map] - l[update_map])  # equivalently, replace "[:,*]" by "[0,*]"
         return lambda_layer
 
     # TODO: see if we can use the Z form instead of distinguishing A and a0, as we did for the other transformations.

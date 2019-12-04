@@ -143,13 +143,18 @@ class zMaxSumOfViolations(zLoss):
         """
         return self.__relu_zlayer.lambda_layer
 
-    def forward(self, zonotope):
+    def forward(self, zonotope, verbose=False):
         """
         Args: 
             zonotope (Zonotope): the zonotope corresponding to the last layer of a zNet, i.e the zonotope of a logit vector
         """
         assert zonotope.dim == torch.Size([self.nb_classes])
+        if verbose:
+            print("entering zMaxSumOfViolations.forward()...")
         violation_zono = zonotope - zonotope[self.true_label]
         violation_zono = self.__relu_zlayer(violation_zono)
-        return violation_zono.sum().upper()
+        res = violation_zono.sum().upper()
+        if verbose:
+            print("finished running zMaxSumOfViolations.forward().")
+        return res
         
