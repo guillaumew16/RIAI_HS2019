@@ -118,10 +118,13 @@ class Zonotope:
         """Apply a convolution layer to this zonotope.
         Args:
             conv (torch.nn.Conv2d)"""
+        # TODO: do some tests to see if one is faster than the other. (my guess is that it changes almost nothing.)
+        # Implementation 1:
         res_Z = conv2d(self.Z, weight=conv.weight, bias=None, stride=conv.stride, padding=conv.padding, dilation=conv.dilation, groups=conv.groups)
         to_add = torch.zeros_like(res_Z)
         to_add[0] = conv.bias.view(*conv.bias.shape, 1, 1) # encapsulates in single pixels (height and width 1)
         return Zonotope(res_Z + to_add)
+        # Implementation 2:
         # return Zonotope(
         #     conv2d(self.A, weight=conv.weight, bias=None, stride=conv.stride, padding=conv.padding, dilation=conv.dilation, groups=conv.groups),
         #     conv2d(self.a0, weight=conv.weight, bias=conv.bias, stride=conv.stride, padding=conv.padding, dilation=conv.dilation, groups=conv.groups)
@@ -132,10 +135,13 @@ class Zonotope:
         Args: 
             linear (nn.Linear): the linear layer with the same weight and bias as the corresponding concrete layer.
                 In fact, using the concrete layer itself is just fine."""
+        # TODO: do some tests to see if one is faster than the other. (my guess is that it changes almost nothing.)
+        # Implementation 1:
         res_Z = self.Z.matmul(linear.weight.t())
         to_add = torch.zeros_like(res_Z)
         to_add[0] = linear.bias
         return Zonotope(res_Z + to_add)
+        # Implementation 2:
         # return Zonotope(
         #     self.A.matmul(linear.weight.t()),
         #     linear(self.a0)
