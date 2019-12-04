@@ -110,12 +110,13 @@ class zNet(nn.Module):
 # same as zNet, _zLoss (and its subclasses) does NOT implemented zm._zModule, but implements nn.Module directly
 class zLoss(nn.Module):
     """A wrapper class for all the loss function implementations (in case we end up finding some more).
-    Takes the logit-layer zonotope as input and should translate the property that the (arg)max of the logits is true_label.
+    Takes the logit-layer zonotope as input and should "translate" the property that the (arg)max of the logits is true_label, namely:
+        IF self.forward() returns a value <= 0, THEN the property is proved
     """
     def __init__(self):
         super().__init__()
     def forward():
-         # fake abstract class
+        # fake abstract class
         raise NotImplementedError("Do not use the class zLoss directly, but one of its subclasses")
 
 class zMaxSumOfViolations(zLoss):
@@ -130,7 +131,7 @@ class zMaxSumOfViolations(zLoss):
         assert true_label in range(0, nb_classes)
         self.true_label = true_label
         self.nb_classes = nb_classes
-        self.__relu_zlayer = zm.zReLU(in_dim=10)
+        self.__relu_zlayer = zm.zReLU(in_dim=torch.Size([self.nb_classes]))
 
     @property
     def logit_lambdas(self):
@@ -138,10 +139,8 @@ class zMaxSumOfViolations(zLoss):
         Note that this leaks the object, which arguably defeats the point of python getters, but in our case 
             this is really what we want, since otherwise we wouldn't be able to pass it as parameter to the optimizer.
         
-        Return: nn.Parameter of shape torch.Size([10])
+        Return: nn.Parameter of shape torch.Size([1, self.nb_classes])
         """
-        print(self.__relu_layer.lambda_layer.shape)  # DEBUG
-        assert self.__relu_layer.lambda_layer.shape == torch.Size([10])
         return self.__relu_zlayer.lambda_layer
 
     def forward(self, zonotope):
@@ -149,7 +148,7 @@ class zMaxSumOfViolations(zLoss):
         Args: 
             zonotope (Zonotope): the zonotope corresponding to the last layer of a zNet, i.e the zonotope of a logit vector
         """
-        assert zonotope.dim == torch.Size([nb_classes])
+        assert zonotope.dim == torch.Size([self.nb_classes])
         violation_zono = zonotope - zonotope[self.true_label]
         violation_zono = self.__relu_zlayer(violation_zono)
         return violation_zono.sum().upper()

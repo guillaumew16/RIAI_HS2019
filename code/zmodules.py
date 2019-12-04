@@ -33,6 +33,10 @@ class _zModule(nn.Module):
 # The only _zModule that has parameters
 class zReLU(_zModule):
     """
+    Applies the ReLU transformation to the zonotope, using self.lambda_layer.
+    If self.lambda_layer.requires_grad==False, i.e we're not optimizing over this zlayer's parameters,
+        use vanilla DeepZ to update the lambdas (instead of freezing their values, which is clearly not what we want)
+    
     Attributes:
         lambda_layer (nn.Parameter): lambda layer of shape [1, *in_dim] (same as zonotopes' a0.shape)
         __uninitialized (bool): True iff `self.lambda_layer` still holds some dummy values, i.e was not yet initialized to the vanilla DeepZ coefficients
@@ -49,13 +53,14 @@ class zReLU(_zModule):
         return self.in_dim
 
     def forward(self, zonotope):
-        if self.__uninitialized:
-            self.initialize_parameters(zonotope)
+        if self.__uninitialized or self.lambda_layer.requires_grad == False:  # if we're not optimizing over this zlayer's parameters, use DeepZ
+            self.__uninitialized = False
+            self.__set_lambdas_to_deepz_(zonotope)
         return zonotope.relu(self.lambda_layer)
 
-    def initialize_parameters(self, zonotope):
+    # follow pyTorch convention: "__x" prefix is for privateness, "y_" suffix is for in-placeness
+    def __set_lambdas_to_deepz_(self, zonotope):
         """Initialize self.lambda_layer to the vanilla DeepZ coefficients on this particular input zonotope"""
-        self.__uninitialized = False
         # https://stackoverflow.com/questions/49433936/how-to-initialize-weights-in-pytorch
         # https://pytorch.org/docs/master/_modules/torch/nn/init.html
         with torch.no_grad():

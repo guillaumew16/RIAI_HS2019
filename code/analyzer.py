@@ -41,7 +41,7 @@ class Analyzer:
         self.true_label = true_label
 
         self.znet = zNet(net)
-        self.zloss = zMaxSumOfViolations(nb_classes=10)
+        self.zloss = zMaxSumOfViolations(true_label=true_label, nb_classes=10)
 
         upper = inp + eps
         lower = inp - eps
@@ -101,10 +101,12 @@ class Analyzer:
         # sys.exit()
 
         # TODO: select optimizer and parameters https://pytorch.org/docs/stable/optim.html. E.g: 
-        # optimizer = optim.SGD(self.znet.parameters(), lr=0.01, momentum=0.9)
-        print([self.zloss.logit_lambdas, *self.znet.lambdas])
-        optimizer = optim.Adam([self.zloss.logit_lambdas, *self.znet.lambdas], lr=0.1)
-        # optimizer = optim.Adam(self.znet.lambdas, lr=0.01)
+        # optimizer = optim.SGD(<parameters>, lr=0.01, momentum=0.9)
+        optimizer = optim.Adam([self.zloss.logit_lambdas, *self.znet.lambdas], lr=0.01)
+        
+        # DEBUG
+        # zm.zReLU has the feature that setting the requires_gradient to False makes us use DeepZ. Here we test that.
+        self.zloss.logit_lambdas.requires_grad = True
 
         dataset = [self.input_zonotope] # TODO: can run the optimizer on different zonotopes in general
                                         # e.g we could try partitioning the zonotopes into smaller zonotopes and verify them separately
@@ -114,7 +116,7 @@ class Analyzer:
             # TODO: do something smarter
             while_counter = 0
             while True:
-                print("optimizer parameters", optimizer.__getstate__()['param_groups'][0]['params'])  # DEBUG
+                # print("optimizer parameters", optimizer.__getstate__()['param_groups'][0]['params'])  # DEBUG
                 if verbose:
                     print("Analyzer.analyze(): iteration #{}".format(while_counter))
                 while_counter += 1
@@ -122,7 +124,7 @@ class Analyzer:
                 optimizer.zero_grad()
                 out_zono = self.znet(inp_zono, verbose=verbose)
                 loss = self.zloss(out_zono)
-                if loss == 0: # TODO: floating point problems?
+                if loss <= 0: # TODO: floating point problems? (there is indeed still a pb here, since zMaxSumOfViolations is non-negative.)
                     return True
                 if verbose:
                     print("Analyzer.analyze(): current loss:", loss.item())
@@ -138,10 +140,9 @@ class Analyzer:
                 print()
                 print("out_zono.A:\n{}\nout_zono.a0:\n{}".format(out_zono.A, out_zono.a0)) # since we're exiting, we can afford to print the results without cluttering the stdout
                 # cannot use optimizer.state_dict bc it hides information (returns index of param instead of param tensor). had to hack into pytorch.optimize source code to find this
-                print("optimizer parameters", optimizer.__getstate__()['param_groups'][0]['params']) 
-                print("self.zloss.logit_lambdas", self.zloss.logit_lambdas)
-                print("self.znet.lambdas", self.znet.lambdas)
-                print("For convenience in testing, we exit now, even though we still have time before timeout.")
+                print("optimizer parameters:\n", optimizer.__getstate__()['param_groups'][0]['params'])
+                # print("self.zloss.logit_lambdas:\n{}\nself.znet.lambdas:\n{}".format(self.zloss.logit_lambdas, self.znet.lambdas)) # should contain the same thing as what we just printed
+                print("For convenience in testing, we exit now (after {} iterations), even though we still have time before timeout.".format(break_at_iter))
                 return False
 
 
