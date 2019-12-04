@@ -2,8 +2,12 @@
 
 # a little script for quick and dirty testing.
 
+usage="Usage: my_test <v || nv> <net>\n
+	\tv for verbose, nv for not-verbose\n
+	\tnet must be one of: fc1 fc2 fc3 fc4 fc5 conv1 conv2 conv3 conv4 conv5"
+
 if [[ $# -ne 2 ]]; then
-	echo "Usage: my_test <net> <v || nv> (verbose or not-verbose)"
+	echo -e ${usage}
 	exit 0
 else
 	if [[ $1 == "v" ]]; then
@@ -11,7 +15,7 @@ else
 	elif [[ $1 == "nv" ]]; then
 		verbosity=""
 	else
-		echo "Usage: my_test <net> <v || nv> (verbose or not-verbose)"
+		echo -e ${usage}
 		exit 0
 	fi
 	net=$2
@@ -48,8 +52,7 @@ elif [[ ${net} == "conv5" ]]; then
  	spec="img0_0.18500.txt"
  	spec="img1_0.21000.txt"
 else
-	echo "Usage: my_test <net> <v || nv> (verbose or not-verbose)"
-	echo -e "\tnet must be one of: fc1 fc2 fc3 fc4 fc5 conv1 conv2 conv3 conv4 conv5"
+	echo -e ${usage}
 	exit 0
 fi
 

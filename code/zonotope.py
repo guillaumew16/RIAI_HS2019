@@ -159,7 +159,7 @@ class Zonotope:
         # Option 2: full initialization map, i.e just make sure the division is safe
         nonzero_map = (u - l != 0)
 
-        # TODO: test whether using the full initialization map helps. So far I found one (and only one) test case where it did (fc5 on fc5/img0)
+        # TODO: do some tests to see whether using the full initialization map helps. So far I found one (and only one) test case where it did (fc5 on fc5/img0)
         # update_map = intersection_map
         update_map = nonzero_map
 

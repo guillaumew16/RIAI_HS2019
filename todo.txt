@@ -1,8 +1,3 @@
-Short-term:
-- test everything, maybe cleanup (mostly try to reduce nb of commented lines permanently there)
-- finally spend some time to review Zonotope.relu()
-- do a "merge request"
-
 Long-term:
 - Use PGD or an open-source verifier to generate more test cases
 - When noticed, mark suspicious lines as TODO or DEBUG with a comment

@@ -14,8 +14,8 @@ class _zModule(nn.Module):
     """
     def __init__(self):
         super().__init__()
-        self.in_dim = None # can be interpreted as "any"...
-        self.__out_dim = None
+        self.in_dim = None # "not yet initialized"
+        self.__out_dim = None # "not yet cached"
 
     def __str__(self):
         return super().__str__().split("(")[0] \
@@ -26,7 +26,7 @@ class _zModule(nn.Module):
             self.__out_dim = self._get_out_dim()
         return self.__out_dim
     
-    # this is intended to be overridden by subclasses, so make it "semiprivate"
+    # this is intended to be overridden by subclasses, so make it "semiprivate" (no name-mangling)
     def _get_out_dim(self):
         raise NotImplementedError("Please implement this method")
 
@@ -52,9 +52,11 @@ class zReLU(_zModule):
     def _get_out_dim(self):
         return self.in_dim
 
-    def forward(self, zonotope):
+    def forward(self, zonotope, verbose=False):
         if self.__uninitialized or self.lambda_layer.requires_grad == False:  # if we're not optimizing over this zlayer's parameters, use DeepZ
             self.__uninitialized = False
+            if verbose:
+                print("zReLU: setting the lambdas for this layer using DeepZ")
             self.__set_lambdas_to_deepz_(zonotope)
         return zonotope.relu(self.lambda_layer)
 
@@ -73,7 +75,7 @@ class zNormalization(_zModule):
         self.sigma = sigma
     def _get_out_dim(self):
         return self.in_dim
-    def forward(self, zonotope):
+    def forward(self, zonotope, verbose=False):
         return zonotope.normalization(self.mean, self.sigma)
 
 class zFlatten(_zModule):
@@ -82,7 +84,7 @@ class zFlatten(_zModule):
         self.in_dim = in_dim
     def _get_out_dim(self):
         return torch.Size([self.in_dim.numel()])
-    def forward(self, zonotope):
+    def forward(self, zonotope, verbose=False):
         return zonotope.flatten()
 
 """For linear layers, the constructor expects the concrete layer directly."""
@@ -94,12 +96,12 @@ class zLinear(_zModule):
         self.bias = concrete_layer.bias.detach()
         
     def _get_out_dim(self):
-        # take advantage of this call to make a sanity-check on in_dim. for DEBUG only
+        # take advantage of this call to make a sanity-check on in_dim
         assert len(self.in_dim) == 1
         assert self.in_dim[0] == self.weight.shape[1]
         return self.bias.shape
 
-    def forward(self, zonotope):
+    def forward(self, zonotope, verbose=False):
         return zonotope.linear_transformation(self.__concrete_layer)
 
 """For convolution layers, the constructor expects the concrete layer directly."""
@@ -126,14 +128,12 @@ class zConv2d(_zModule):
         padding     = make_tuple(self.__concrete_layer.padding)
         dilation    = make_tuple(self.__concrete_layer.dilation)
         out_channels = self.__concrete_layer.out_channels
-        h_out = self.in_dim[1] + 2*padding[0] - dilation[0] * (kernel_size[0] - 1) - 1
-        h_out = h_out // stride[0] + 1
-        w_out = self.in_dim[2] + 2*padding[1] - dilation[1] * (kernel_size[1] - 1) - 1
-        w_out = w_out // stride[1] + 1
+        h_out = ( self.in_dim[1] + 2*padding[0] - dilation[0] * (kernel_size[0] - 1) - 1 ) // stride[0] + 1
+        w_out = ( self.in_dim[2] + 2*padding[1] - dilation[1] * (kernel_size[1] - 1) - 1 ) // stride[1] + 1
         return torch.Size([out_channels, h_out, w_out])
         # dummy_input = torch.zeros(1, *self.in_dim)
         # dummy_output = self.forward(Zonotope(dummy_input, dummy_input)) # 0 mean, 1 error term with coefficients 0
         # return dummy_output.dim
 
-    def forward(self, zonotope):
+    def forward(self, zonotope, verbose=False):
         return zonotope.convolution(self.__concrete_layer)

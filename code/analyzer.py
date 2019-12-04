@@ -12,8 +12,8 @@ class Analyzer:
     Analyzer expected by `verifier.py`, to be run using `Analyzer.analyze()`.
     In terms of the attributes, the query to be answered is:
         ?"forall x in input_zonotope, net(x) labels x as true_label"?
-
-    `loss(forward( input_zonotope ))` is a parameterized function with parameters `self.lambdas`. If it returns 0, then the query is true.
+    `self.zloss(self.znet(self.input_zonotope))` is a parameterized loss function with parameters `self.znet.lambdas` and `self.zloss.logit_lambdas`. 
+        If it returns a value <= 0, then the query is true.
     `analyze()` optimizes these parameters to minimize the loss.
 
     Attributes:
@@ -50,41 +50,24 @@ class Analyzer:
         a0 = (upper + lower) / 2  # center of the zonotope
         # A must have shape (nb_error_terms, *[shape of input])
         # for the input layer, there is 1 error term for each pixel, so nb_error_terms = inp.numel()
-
-        # A = torch.zeros(784, 1, 28, 28)
-        # mask = torch.ones(1, 28, 28, dtype=torch.bool)
-        A = torch.zeros(inp.numel(), *inp.shape[1:])
-        mask = torch.ones(*inp.shape[1:], dtype=torch.bool)
-
+        A = torch.zeros(inp.numel(), *inp.shape[1:])        # torch.zeros(784, 1, 28, 28)
+        mask = torch.ones(*inp.shape[1:], dtype=torch.bool) #  torch.ones(1, 28, 28, dtype=torch.bool)
         A[:, mask] = torch.diag(((upper - lower) / 2).reshape(-1))
-        self.input_zonotope = Zonotope(A, a0)
+        self.input_zonotope = Zonotope(A, a0).reset() # avoid capturing, just in case. (TODO: is this actually useful? I'm pretty sure that no, but please check.)
 
     def analyze(self, verbose=False):
-        """Run an optimizer on `self.znet.lambdas` to minimize `self.zloss(self.znet(self.input_zonotope))`.
-        Returns True iff the `self.__net` is verifiably robust on `self.input_zonotope`, i.e there exist lambdas s.t loss == 0
-        Doesn't return until it is the case, i.e never returns False
-        TODO: The last half of the above statement is not exactly it: we can still use ensembling ideas as described in project statement"""
+        """Returns True iff the `self.__net` is verifiably robust on `self.input_zonotope`
+        Doesn't return until it is proved, i.e never returns False
+
+        What the current implementation does:
+            Run an optimizer on `self.znet.lambdas` and `self.zloss.logit_lambdas` to minimize `self.zloss(self.znet(self.input_zonotope))`.
+            Return True when we find values of the lambdas s.t loss == 0
+        """
         if verbose: print("entering Analyzer.analyze() with znet: \n{}".format(self.znet))
 
-        # TODO: move this to a unittest or something. Anyway, this has been tested and it works. (DEBUG)
-        # a check that self.znet.lambdas is what we want (i.e the set of all the lambdas used as parameters)
-        # this also checks that self.znet only has the lambdas as active parameters (i.e all others have required_grad=False)
-        # for zlayer in self.znet.zlayers:
-        #     print(zlayer)
-        #     for p in zlayer.parameters():
-        #         # with torch.no_grad(): # to see that self.znet.lambdas does indeed reference the same thing
-        #         #     p.fill_(1)
-        #         if p.requires_grad == True:
-        #             print(p)
-        #         else:
-        #             print("some frozen parameter (with requires_grad = False) of shape {}".format(p.shape))
-        # for lam in self.znet.lambdas:
-        #     # with torch.no_grad(): # to see that self.znet.layers.parameters() does indeed reference the same thing
-        #     #     p.fill_(2)
-        #     print(lam)
-
-        # FOR DEBUG:
-        # self.run_in_parallel()        
+        # useful stuff for debugging
+        # self.check_parameters()
+        # self.run_in_parallel()
         # class NetByLayers(nn.Module):
         #     def __init__(self,layers):
         #         super().__init__()
@@ -97,26 +80,22 @@ class Analyzer:
         # net_layers.append(nn.ReLU())
         # net = NetByLayers(net_layers)
         # self.run_in_parallel(self.input_zonotope, net)
-        # import sys
-        # sys.exit()
 
         # TODO: select optimizer and parameters https://pytorch.org/docs/stable/optim.html. E.g: 
         # optimizer = optim.SGD(<parameters>, lr=0.01, momentum=0.9)
         optimizer = optim.Adam([self.zloss.logit_lambdas, *self.znet.lambdas], lr=0.01)
         
-        # DEBUG
-        # zm.zReLU has the feature that setting the requires_gradient to False makes us use DeepZ. Here we test that.
+        # zm.zReLU has the feature that setting the requires_gradient to False makes us use DeepZ, e.g:
         # self.zloss.logit_lambdas.requires_grad = False
 
         dataset = [self.input_zonotope] # TODO: can run the optimizer on different zonotopes in general
                                         # e.g we could try partitioning the zonotopes into smaller zonotopes and verify them separately
         for inp_zono in dataset:
             if verbose: print("Analyzer.analyze(): performing the optimization on inp_zono: {}".format(inp_zono))
-            # aaaand actually for now just run this optimizer ad infinitum.
-            # TODO: do something smarter
+            # aaaand actually for now just run this optimizer ad infinitum. TODO: do something smarter
             while_counter = 0
             while True:
-                # print("optimizer parameters", optimizer.__getstate__()['param_groups'][0]['params'])  # DEBUG
+                # print("optimizer parameters", optimizer.__getstate__()['param_groups'][0]['params'])  # useful for debugging
                 if verbose:
                     print("Analyzer.analyze(): iteration #{}".format(while_counter))
                 optimizer.zero_grad()
@@ -139,16 +118,41 @@ class Analyzer:
                     continue
                 print()
                 print("out_zono.A:\n{}\nout_zono.a0:\n{}".format(out_zono.A, out_zono.a0)) # since we're exiting, we can afford to print the results without cluttering the stdout
-                # cannot use optimizer.state_dict bc it hides information (returns index of param instead of param tensor). had to hack into pytorch.optimize source code to find this
+                # cannot use optimizer.state_dict bc it hides information (returns index of param instead of param tensor). Had to look into pytorch.optimize source code to find this.
                 print("optimizer parameters:\n", optimizer.__getstate__()['param_groups'][0]['params'])
                 # print("self.zloss.logit_lambdas:\n{}\nself.znet.lambdas:\n{}".format(self.zloss.logit_lambdas, self.znet.lambdas)) # should contain the same thing as what we just printed
                 print("For convenience in testing, we exit now (after {} iterations), even though we still have time before timeout.".format(break_at_iter))
                 return False
 
 
-    # DEBUG: obviously, this shouldn't be run in prod
+
+    # Debugging utilities (DEBUG: obviously, none of these should be run in prod)
+    # ~~~~~~~~~~~~~~~~~~~
+
+    def check_parameters(self):
+        """A debugging utility.
+        Check that the self.znet.lambdas is what we want (i.e the set of all the lambdas used as parameters).
+        This also checks that self.znet only has the lambdas as active parameters (i.e all others have required_grad=False).
+        """
+        import zmodules as zm
+        for zlayer in self.znet.zlayers:
+            print(zlayer)
+            for p in zlayer.parameters():
+                # with torch.no_grad(): # to see that self.znet.lambdas does indeed reference the same thing (the next for loop will print all 1's)
+                #     p.fill_(1)
+                if p.requires_grad == True:
+                    assert isinstance(zlayer, zm.zReLU)
+                    print(p)
+                else:
+                    print("some frozen parameter (with requires_grad = False) of shape {}".format(p.shape))
+        for lam in self.znet.lambdas:
+            print(lam)
+
     def run_in_parallel(self, inp_zono=None, concrete_net=None):
-        """A debugging utility. Runs a concrete network and the corresponding zNetwork in parallel to make some checks."""
+        """A debugging utility. 
+        Runs a concrete network and the corresponding zNetwork in parallel to make some checks.
+        Note that the concrete point and the zonotope center are NOT theoretically supposed to be identical, since we recenter the zonotope at each ReLU.
+        """
         if inp_zono is None:
             inp_zono = self.input_zonotope
         if concrete_net is None:
@@ -157,11 +161,9 @@ class Analyzer:
         else:
             net = concrete_net
             znet = zNet(concrete_net)
-        # print("net(inp_zono.a0) (ground truth):\n", net(inp_zono.a0))
-        # print("znet(inp_zono).a0:\n", znet(inp_zono).a0)
-        # assert torch.allclose(out_zono.a0, self.__net(inp_zono.a0))
         next_point = inp_zono.a0
         next_zono = inp_zono
+        assert torch.allclose(next_point, next_zono.a0)  # at the input layer the concrete point and the zono-center are identical
         for i in range(len(net.layers)):
             layer = net.layers[i]
             zlayer = znet.zlayers[i]
@@ -172,13 +174,13 @@ class Analyzer:
             print("next_point (ground truth):\n", next_point)
             print("next_zono.a0:\n", next_zono.a0)
             print("next_zono.A:\n", next_zono.A)
-            # print("next_point - next_zono.a0:\n", next_point - next_zono.a0)
 
 
     def make_dot_loss(self, gv_filename):
         """Use https://github.com/szagoruyko/pytorchviz to visualize the computation graph of the loss.
         Writes the result to gv_filename in .gv and .gv.pdf formats.
-        Returns the corresponding graphviz.Digraph object."""
+        Returns the corresponding graphviz.Digraph object.
+        """
         try:
             import torchviz
             inp_zono = Zonotope(torch.zeros_like(self.input_zonotope.Z))

@@ -15,7 +15,7 @@ class zNet(nn.Module):
         zlayers (list of zm._zModule): list of layers corresponding to zonotope transformations.
             Each element corresponds to a layer in `self.__net`.
             Note that `self.zlayers` is a Python list, NOT something produced by `nn.Sequential()`, contrary to the `layers` attribute in networks.py.
-        zonotopes (list of Zonotope): the list of the intermediary zonotopes (one zonotope for each layer).
+        zonotopes (list of Zonotope): the list of the intermediary zonotopes (one zonotope for each zlayer + one for the output).
             Each element is a Zonotope of shape [1, <*shape of nn layer>].
             `self.zonotopes[i]` is the input of `self.zlayers[i]`. Thus, `self.zonotopes[-1]` is the output zonotope, and `len(self.zonotopes) = len(self.zlayers) + 1`.
         lambdas (list of torch.nn.Parameter): the list of the Znet's parameters (one `lambda_layer` tensor for each ReLU layer).
@@ -41,9 +41,9 @@ class zNet(nn.Module):
             if isinstance(layer, nn.ReLU):
                 zlayer = zm.zReLU(in_dim=out_dim) # needs to set in_dim right away.
             elif isinstance(layer, nn.Linear):
-                zlayer = zm.zLinear(layer) # the constructor expects the concrete layer directly
+                zlayer = zm.zLinear(layer) # the constructor expects the concrete layer directly.
             elif isinstance(layer, nn.Conv2d):
-                zlayer = zm.zConv2d(layer) # the constructor expects the concrete layer directly
+                zlayer = zm.zConv2d(layer) # the constructor expects the concrete layer directly.
             elif isinstance(layer, Normalization):
                 zlayer = zm.zNormalization(layer.mean, layer.sigma)
             elif isinstance(layer, nn.Flatten):
@@ -82,12 +82,11 @@ class zNet(nn.Module):
             inp_zono (Zonotope): the input zonotope
             zlayer (zm._zModule): the layer to apply
         """
-        # DEBUG
         if not isinstance(zlayer, zm._zModule):
             raise ValueError("expected a zm._zModule")
         if verbose:
             print("\tapplying zNet.forward_step() at layer: {}\n\ton zonotope: {}".format(zlayer, zonotope))
-        return zlayer(zonotope)
+        return zlayer(zonotope, verbose)
 
     def forward(self, input_zonotope, verbose=False):
         """Run the network transformations on `input_zonotope`.
@@ -95,7 +94,7 @@ class zNet(nn.Module):
             input_zonotope (Zonotope): the zonotope, of shape A.shape=[784, 1, 28, 28]
         """
         if verbose: print("entering zNet.forward()...")
-        zonotope = input_zonotope.reset() # avoid capturing, just in case. (DEBUG)
+        zonotope = input_zonotope.reset() # avoid capturing, just in case. (TODO: is this actually useful?)
         self.zonotopes[0] = zonotope
         for idx, zlayer in enumerate(self.zlayers):
             if verbose:
@@ -107,9 +106,10 @@ class zNet(nn.Module):
 
 
 
-# same as zNet, _zLoss (and its subclasses) does NOT implemented zm._zModule, but implements nn.Module directly
+# same as zNet, zLoss (and its subclasses) does NOT implemented zm._zModule, but implements nn.Module directly
 class zLoss(nn.Module):
-    """A wrapper class for all the loss function implementations (in case we end up finding some more).
+    """
+    A wrapper class for all the loss function implementations (in case we end up finding some more).
     Takes the logit-layer zonotope as input and should "translate" the property that the (arg)max of the logits is true_label, namely:
         IF self.forward() returns a value <= 0, THEN the property is proved
     """
@@ -136,8 +136,7 @@ class zMaxSumOfViolations(zLoss):
     @property
     def logit_lambdas(self):
         """Return the lambdas used by the ReLU layer.
-        Note that this leaks the object, which arguably defeats the point of python getters, but in our case 
-            this is really what we want, since otherwise we wouldn't be able to pass it as parameter to the optimizer.
+        Note that this leaks the object, which is what we want, since we need to pass it as parameter to the optimizer.
         
         Return: nn.Parameter of shape torch.Size([1, self.nb_classes])
         """
@@ -152,7 +151,7 @@ class zMaxSumOfViolations(zLoss):
         if verbose:
             print("entering zMaxSumOfViolations.forward()...")
         violation_zono = zonotope - zonotope[self.true_label]
-        violation_zono = self.__relu_zlayer(violation_zono)
+        violation_zono = self.__relu_zlayer(violation_zono, verbose)
         res = violation_zono.sum().upper()
         if verbose:
             print("finished running zMaxSumOfViolations.forward().")
