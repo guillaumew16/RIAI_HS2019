@@ -104,3 +104,53 @@ class zNet(nn.Module):
             self.zonotopes[idx+1] = self.forward_step(self.zonotopes[idx], zlayer, verbose=verbose)
         if verbose: print("finished running zNet.forward().")
         return self.zonotopes[-1]
+
+
+
+# same as zNet, _zLoss (and its subclasses) does NOT implemented zm._zModule, but implements nn.Module directly
+class zLoss(nn.Module):
+    """A wrapper class for all the loss function implementations (in case we end up finding some more).
+    Takes the logit-layer zonotope as input and should translate the property that the (arg)max of the logits is true_label.
+    """
+    def __init__(self):
+        super().__init__()
+    def forward():
+         # fake abstract class
+        raise NotImplementedError("Do not use the class zLoss directly, but one of its subclasses")
+
+class zMaxSumOfViolations(zLoss):
+    """
+    The max sum of violations over the zonotope:
+        max_{x(=logit) in output_zonotope} sum_{label l s.t logit[l] > logit[true_label]} (logit[l] - logit[true_label])
+    Actually we didn't find any other reasonable choice of loss, cf formulas.pdf. 
+    """
+
+    def __init__(self, true_label, nb_classes=10):
+        super().__init__()
+        assert true_label in range(0, nb_classes)
+        self.true_label = true_label
+        self.nb_classes = nb_classes
+        self.__relu_zlayer = zm.zReLU(in_dim=10)
+
+    @property
+    def logit_lambdas(self):
+        """Return the lambdas used by the ReLU layer.
+        Note that this leaks the object, which arguably defeats the point of python getters, but in our case 
+            this is really what we want, since otherwise we wouldn't be able to pass it as parameter to the optimizer.
+        
+        Return: nn.Parameter of shape torch.Size([10])
+        """
+        print(self.__relu_layer.lambda_layer.shape)  # DEBUG
+        assert self.__relu_layer.lambda_layer.shape == torch.Size([10])
+        return self.__relu_zlayer.lambda_layer
+
+    def forward(self, zonotope):
+        """
+        Args: 
+            zonotope (Zonotope): the zonotope corresponding to the last layer of a zNet, i.e the zonotope of a logit vector
+        """
+        assert zonotope.dim == torch.Size([nb_classes])
+        violation_zono = zonotope - zonotope[self.true_label]
+        violation_zono = self.__relu_zlayer(violation_zono)
+        return violation_zono.sum().upper()
+        

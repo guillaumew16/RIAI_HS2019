@@ -5,7 +5,7 @@ import torch.optim as optim
 from zonotope import Zonotope
 from networks import Normalization
 
-from znet import zNet
+from znet import zNet, zLoss, zMaxSumOfViolations
 
 class Analyzer:
     """
@@ -18,16 +18,12 @@ class Analyzer:
 
     Attributes:
         znet (zNet): the network with zonotope variables and parameters lambda, s.t self.__net is self.znet "in the concrete"
+        zloss (zLoss): the loss function, with zonotope input, that translates the logical property to analyze
         input_zonotope (Zonotope): the zonotope to analyze (derived from inp and eps in the __init__)
         true_label (int): the true label of the input point
         __net (networks.FullyConnected || networks.Conv): the network to be analyzed (first layer: Normalization). kept for convenience
         __inp (torch.Tensor): a copy of the input point inp. kept for convenience
         __eps (float): a copy of the queried eps. kept for convenience
-        loss_lambda (nn.Parameter): the lambdas used in the relu of the loss function, of shape [1, 10].
-            Note that pytorch.optimize's doc uses Variables (i.e Tensors since pyTorch's Variable API has been deprecated), but in our case we need a wrapper around the data (due to initialization method)
-            Thus we reuse the same initialization pattern as for zReLU's parameters
-            Note that they are only useful if the loss function used is the sum of violations, or any other loss function that requires ReLU (cf formulas.pdf)
-        __loss_lambda_uninitialized (bool): True iff `self.loss_lambda` still holds some dummy values, i.e was not yet initialized to the vanilla DeepZ coefficients
 
     Args:
         net: see Attributes
@@ -44,10 +40,8 @@ class Analyzer:
         self.__eps = eps
         self.true_label = true_label
 
-        self.loss_lambda = nn.Parameter(torch.zeros(1, 10), requires_grad=True)
-        self.__loss_lambda_uninitialized = True
-
         self.znet = zNet(net)
+        self.zloss = zMaxSumOfViolations(nb_classes=10)
 
         upper = inp + eps
         lower = inp - eps
@@ -65,28 +59,8 @@ class Analyzer:
         A[:, mask] = torch.diag(((upper - lower) / 2).reshape(-1))
         self.input_zonotope = Zonotope(A, a0)
 
-    def loss(self, output_zonotope):
-        """Returns the max sum of violations over the zonotope. We didn't find any other reasonable choice of loss, cf formulas.pdf.
-        Args:
-            output_zonotope (Zonotope)
-
-        Returns max sum of violations:
-            max_{x(=logit) in output_zonotope} sum_{label l s.t logit[l] > logit[true_label]} (logit[l] - logit[true_label])
-        """
-        assert output_zonotope.dim == torch.Size([10])
-        if self.__loss_lambda_uninitialized:
-            with torch.no_grad():
-                self.loss_lambda.data = output_zonotope.compute_lambda_breaking_point()
-            self.__loss_lambda_uninitialized = False
-        # TODO: for some reason, using the new line (with loss_lambda passed as param to the relu()) makes the optimizer fail
-        # that is, the parameters are not updated at all anymore
-        # that is the case regardless of whether self.loss_lambda is included as param to the optimizer
-        # TODO: found the bug (or at least a source of bug: use a Parameter type and do .data = ...). now must test.
-        # return (output_zonotope - output_zonotope[self.true_label]).relu(self.loss_lambda).sum().upper()
-        return (output_zonotope - output_zonotope[self.true_label]).relu().sum().upper()
-
     def analyze(self, verbose=False):
-        """Run an optimizer on `self.znet.lambdas` to minimize `self.loss(self.foward())`.
+        """Run an optimizer on `self.znet.lambdas` to minimize `self.zloss(self.znet(self.input_zonotope))`.
         Returns True iff the `self.__net` is verifiably robust on `self.input_zonotope`, i.e there exist lambdas s.t loss == 0
         Doesn't return until it is the case, i.e never returns False
         TODO: The last half of the above statement is not exactly it: we can still use ensembling ideas as described in project statement"""
@@ -128,8 +102,8 @@ class Analyzer:
 
         # TODO: select optimizer and parameters https://pytorch.org/docs/stable/optim.html. E.g: 
         # optimizer = optim.SGD(self.znet.parameters(), lr=0.01, momentum=0.9)
-        print([self.loss_lambda, *self.znet.lambdas])
-        optimizer = optim.Adam([self.loss_lambda, *self.znet.lambdas], lr=0.1)
+        print([self.zloss.logit_lambdas, *self.znet.lambdas])
+        optimizer = optim.Adam([self.zloss.logit_lambdas, *self.znet.lambdas], lr=0.1)
         # optimizer = optim.Adam(self.znet.lambdas, lr=0.01)
 
         dataset = [self.input_zonotope] # TODO: can run the optimizer on different zonotopes in general
@@ -140,14 +114,14 @@ class Analyzer:
             # TODO: do something smarter
             while_counter = 0
             while True:
-                print("optimizer parameters", optimizer.__getstate__()['param_groups'][0]['params'])  # debug
+                print("optimizer parameters", optimizer.__getstate__()['param_groups'][0]['params'])  # DEBUG
                 if verbose:
                     print("Analyzer.analyze(): iteration #{}".format(while_counter))
                 while_counter += 1
 
                 optimizer.zero_grad()
                 out_zono = self.znet(inp_zono, verbose=verbose)
-                loss = self.loss(out_zono)
+                loss = self.zloss(out_zono)
                 if loss == 0: # TODO: floating point problems?
                     return True
                 if verbose:
@@ -165,7 +139,7 @@ class Analyzer:
                 print("out_zono.A:\n{}\nout_zono.a0:\n{}".format(out_zono.A, out_zono.a0)) # since we're exiting, we can afford to print the results without cluttering the stdout
                 # cannot use optimizer.state_dict bc it hides information (returns index of param instead of param tensor). had to hack into pytorch.optimize source code to find this
                 print("optimizer parameters", optimizer.__getstate__()['param_groups'][0]['params']) 
-                print("self.loss_lambda", self.loss_lambda)
+                print("self.zloss.logit_lambdas", self.zloss.logit_lambdas)
                 print("self.znet.lambdas", self.znet.lambdas)
                 print("For convenience in testing, we exit now, even though we still have time before timeout.")
                 return False
@@ -208,7 +182,7 @@ class Analyzer:
             import torchviz
             inp_zono = Zonotope(torch.zeros_like(self.input_zonotope.Z))
             out_zono = self.znet(inp_zono)
-            loss = self.loss(out_zono)
+            loss = self.zloss(out_zono)
             dot = torchviz.make_dot(loss)
             dot.render(gv_filename, view=False)
             return dot
