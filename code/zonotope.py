@@ -150,23 +150,25 @@ class Zonotope:
         #     linear(self.a0)
         # )
 
-    def compute_lambda_breaking_point(self):
+    # TODO: do some tests to see whether using the full initialization map helps. So far I found one (and only one) test case where it did (fc5 on fc5/img0)
+    # TODO: that might not be the case anymore with the "clamp lambda to [0,1]" fix
+    def compute_lambda_breaking_point(self, approx_neurons_only=False):
         """Returns the lambda coefficients used by the vanilla DeepZ.
-        The returned value (`lambda_layer`) is a Tensor of shape [1, <*shape of nn layer>] (same as a0)"""
+        The returned value (`lambda_layer`) is a Tensor of shape [1, <*shape of nn layer>] (same as a0)
+        Args:
+            approx_neurons_only (bool, optional):
+                - if True, option 1: ignore neurons don't require a lambda for ReLU transformation (set the corresponding lambda to 0)
+                - if False, option 2: full initialization map, i.e initialize all neurons (just make sure the division is safe)
+        """
         l = self.lower()
         u = self.upper()
 
-        # construct update_map, a boolean mask of shape [1, <*shape of nn layer>], i.e the same as lambda_layer, u, l
-        # Option 1: intersection map, i.e we ignore variables don't require a lambda for ReLU transformation (set the corresponding lambda to 0)
-        intersection_map = ((l < 0) * (u > 0))  # entries s.t l < 0 < u. (implies u-l > 0 so division safe)
-        # Option 2: full initialization map, i.e just make sure the division is safe
-        nonzero_map = (u - l != 0)
+        if approx_neurons_only:
+            update_map = ((l < 0) * (u > 0))  # entries s.t l < 0 < u. (implies u-l > 0 so division safe)
+        else:
+            update_map = (u - l != 0)
 
-        # TODO: do some tests to see whether using the full initialization map helps. So far I found one (and only one) test case where it did (fc5 on fc5/img0)
-        # update_map = intersection_map
-        update_map = nonzero_map
-
-        lambda_layer = torch.zeros([1, *self.dim])
+        lambda_layer = torch.zeros(1, *self.dim)
         lambda_layer[update_map] = u[update_map] / (
                 u[update_map] - l[update_map])  # equivalently, replace "[:,*]" by "[0,*]"
 
@@ -249,3 +251,80 @@ class Zonotope:
         # this line create a diagonal matrix to set the values of A.
         A[self.A.shape[0]:, intersection_map] = torch.diag((mu[:, intersection_map]).reshape(-1))
         return Zonotope(A, a0)
+
+    # TODO: finish debugging all this function
+    def relu_simpler(self, lambdas=None):
+        """A more readable implementation of relu(). Possibly this yields a simpler computation graph.
+        Apply a ReLU layer to this zonotope.
+        Args:
+            lambdas (torch.Tensor || None): the lambdas to use, of shape [1, <*shape of nn layer>].
+                They must be in the range [0, 1].
+                If None, do the vanilla DeepZ transformation.
+        """
+        if False: # TODO: do this
+            if lambdas is not None:
+                if (lambdas < 0).any() or (lambdas > 1).any():
+                    raise ValueError("lambdas must be in [0, 1]")
+
+        # TODO: should we do .clone().detach() or must we preserve gradient?
+        a0 = self.a0.clone()
+        A = self.A.clone()
+
+        l = self.lower()
+        u = self.upper()
+        # compute boolean map to find which elements of the input have a negative lower bound and a positive upper bound
+        # note that these three boolean maps form a "partition" of {True,False}^[*self.dim]
+        zero_neurons   = (u <= 0)[0] # neurons to be set to 0
+        ident_neurons  = (l >= 0)[0] # neurons to be left unchanged
+        approx_neurons = ((l < 0) * (u > 0))[0] # neurons that require approximation
+
+        a0[0, zero_neurons] = 0
+        A[:, zero_neurons] = 0
+        # a[0, ident_neurons]: unchanged
+        # A[:, ident_neurons]: unchanged
+
+        nb_new_error_terms = torch.nonzero(approx_neurons).size(0) # 1 new error term for each neuron
+        A = torch.cat([ A, torch.zeros(nb_new_error_terms, *self.dim) ], dim=0) # add new error terms of magnitude 0 for all neurons
+
+        # A/a0[:, zero_neurons] and A/a0[:, ident_neurons] now have the value we wanted. Now update A/a0[:, approx_neurons].
+        apn = approx_neurons
+        # y = lambda*x + mu + mu*eps_new where mu = d / 2 and d is the translation of the line that approximate the upper bound of the relu transformation.
+        # Namely:   mu = -lambda*l/2        if lambda >= lambda_breaking_point  ("use_l_map")
+        #           mu = (-lambda*u + u)/2  if lambda < lambda_breaking_point   ("use_u_map")
+        # So a0 = a0*lambda + mu and A = lambda*A for all the old epsilons and A = mu for the new epsilons.
+        
+        # Note: all local variables from now on (breaking_point, mu, use_l_map...) will be indexed on apn, i.e of shape=[nb_new_error_terms] but still "living in" <shape of nn layer>.
+        # This is because pytorch's mask indexing (masked_select/masked_scatter_ I think) is implemented as flattened tensors. 
+        # The "translation" is consistent, so that when assigning to a mask-indexed tensor, the de-flattening is (almost) assured to be done correctly.
+        l = l[0, apn] # throw away the rest (this changes l.shape as described above)
+        u = u[0, apn]
+        if lambdas is not None: lambdas = lambdas[0, apn]
+        breaking_point = u / (u - l)
+
+        if lambdas is None: # minor optimization: if we use vanilla DeepZ, the exact expressions are already known
+            lambdas = breaking_point
+            mu = -l / lambdas / 2
+        else:
+            use_l_map = (lambdas >= breaking_point)
+            use_u_map = ~ use_l_map
+            mu = torch.zeros_like(lambdas)
+            mu[use_l_map] = - l[use_l_map] *      lambdas[use_l_map]   / 2
+            mu[use_u_map] =   u[use_u_map] * (1 - lambdas[use_u_map])  / 2
+        
+        # Compute new a0 and A
+        a0[:, apn] = a0[:, apn] * lambdas + mu
+        A[:self.nb_error_terms, apn] = A[:self.nb_error_terms, apn] * lambdas   # old epsilons
+        A[self.nb_error_terms:, apn] = torch.diag(mu.reshape(-1))               # new epsilons # TODO: check and/or fix this syntax
+        assert( A[self.nb_error_terms:, apn].nonzero().size(0) == mu.nonzero().size(0) )
+        return Zonotope(A, a0)
+
+    # DEBUG: redefine relu()
+    def relu(self, lambdas=None):
+        print("Using Zonotope.relu_simpler()")
+        res_simpl = self.relu_simpler(lambdas)
+        # DEBUG
+        # res_normal = self.relu_normal(lambdas) # need to rename the normal method for this to work
+        # assert( torch.allclose(res_simpl.Z, res_normal.Z) )
+
+        return res_simpl
+        # return res_normal
