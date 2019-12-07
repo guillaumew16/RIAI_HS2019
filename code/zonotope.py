@@ -285,30 +285,30 @@ class Zonotope:
         # Namely:   mu = -lambda*l/2        if lambda >= lambda_breaking_point  ("use_l_map")
         #           mu = (-lambda*u + u)/2  if lambda < lambda_breaking_point   ("use_u_map")
         # So a0 = a0*lambda + mu and A = lambda*A for all the old epsilons and A = mu for the new epsilons.
-        mu = torch.zeros(1, *self.dim)
-        # breaking_point = self.compute_lambda_breaking_point(approx_neurons_only=True)
-        breaking_point = np.empty(1, *self.dim)
-        breaking_point[:, apn] = u[:, apn] / (
-                    u[:, apn] - l[:, apn])  # equivalently, replace "[:,*]" by "[0,*]"
+        
+        # Note: all local variables from now on (breaking_point, mu, use_l_map...) will be indexed on apn, i.e of shape=[nb_new_error_terms] but still "living in" <shape of nn layer>.
+        # This is because pytorch's mask indexing (masked_select/masked_scatter_ I think) is implemented as flattened tensors. 
+        # The "translation" is consistent, so that when assigning to a mask-indexed tensor, the de-flattening is (almost) assured to be done correctly.
+        l = l[0, apn] # throw away the rest (this changes l.shape as described above)
+        u = u[0, apn]
+        if lambdas is not None: lambdas = lambdas[0, apn]
+        breaking_point = u / (u - l)
 
         if lambdas is None: # minor optimization: if we use vanilla DeepZ, the exact expressions are already known
             lambdas = breaking_point
-            mu[:, apn] = -l[:, apn] / lambdas[:, apn] / 2
+            mu = -l / lambdas / 2
         else:
-            # note that the boolean maps use_l_map and use_u_map are a "partition" of approx_neurons (with same shape i.e <*shape of nn layer>)).
-            # i.e use_l_map * use_u_map = [tensor with all False], use_l_map + use_u_map = [tensor with all True]
-            use_l_map = apn * (lambdas >= breaking_point)[0]
-            use_u_map = apn * (lambdas <  breaking_point)[0] # approx_neurons * (~use_l_map)
-            assert(use_l_map.shape == apn.shape)
-            mu[:, use_l_map] = - l[:, use_l_map] * lambdas[:, use_l_map]
-            mu[:, use_u_map] =   u[:, use_u_map] * (1 - lambdas[:, use_u_map])
-            mu.div_(2)
-            
+            use_l_map = (lambdas >= breaking_point)
+            use_u_map = ~ use_l_map
+            mu = torch.zeros_like(lambdas)
+            mu[use_l_map] = - l[use_l_map] *      lambdas[use_l_map]   / 2
+            mu[use_u_map] =   u[use_u_map] * (1 - lambdas[use_u_map])  / 2
+        
         # Compute new a0 and A
-        a0[:, apn] = a0[:, apn] * lambdas[:, apn] + mu[:, apn]
-        A[:self.nb_error_terms, apn] = A[:self.nb_error_terms, apn] * (lambdas[:, apn]) # old epsilons
-        A[self.nb_error_terms:, apn] = torch.diag(mu[:, apn].reshape(-1))               # new epsilons # TODO: check and/or fix this syntax
-        assert( A[self.nb_error_terms:, apn].nonzero().size(0) == mu[:, apn].nonzero().size(0) )
+        a0[:, apn] = a0[:, apn] * lambdas + mu
+        A[:self.nb_error_terms, apn] = A[:self.nb_error_terms, apn] * lambdas   # old epsilons
+        A[self.nb_error_terms:, apn] = torch.diag(mu.reshape(-1))               # new epsilons # TODO: check and/or fix this syntax
+        assert( A[self.nb_error_terms:, apn].nonzero().size(0) == mu.nonzero().size(0) )
         return Zonotope(A, a0)
 
     # DEBUG: redefine relu()
