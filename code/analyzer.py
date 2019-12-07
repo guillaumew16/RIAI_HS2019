@@ -7,6 +7,7 @@ from networks import Normalization
 
 from znet import zNet, zLoss, zMaxSumOfViolations
 
+
 class Analyzer:
     """
     Analyzer expected by `verifier.py`, to be run using `Analyzer.analyze()`.
@@ -32,7 +33,7 @@ class Analyzer:
         true_label (int): see Attributes
     """
 
-    def __init__(self, net, inp, eps, true_label):
+    def __init__(self, net, inp, eps, true_label, nb_classes=10):
         self.__net = net
         for p in net.parameters():
             p.requires_grad = False  # freeze the concrete network layers, to avoid doing useless computations
@@ -40,8 +41,8 @@ class Analyzer:
         self.__eps = eps
         self.true_label = true_label
 
-        self.znet = zNet(net)
-        self.zloss = zMaxSumOfViolations(true_label=true_label, nb_classes=10)
+        self.znet = zNet(net, input_shape=inp.shape, nb_classes=nb_classes)
+        self.zloss = zMaxSumOfViolations(true_label=true_label, nb_classes=nb_classes)
 
         upper = inp + eps
         lower = inp - eps
@@ -50,10 +51,13 @@ class Analyzer:
         a0 = (upper + lower) / 2  # center of the zonotope
         # A must have shape (nb_error_terms, *[shape of input])
         # for the input layer, there is 1 error term for each pixel, so nb_error_terms = inp.numel()
-        A = torch.zeros(inp.numel(), *inp.shape[1:])        # torch.zeros(784, 1, 28, 28)
-        mask = torch.ones(*inp.shape[1:], dtype=torch.bool) #  torch.ones(1, 28, 28, dtype=torch.bool)
+        A = torch.zeros(inp.numel(), *inp.shape[1:])  # torch.zeros(784, 1, 28, 28)
+        mask = torch.ones(*inp.shape[1:], dtype=torch.bool)  # torch.ones(1, 28, 28, dtype=torch.bool)
         A[:, mask] = torch.diag(((upper - lower) / 2).reshape(-1))
-        self.input_zonotope = Zonotope(A, a0).reset() # avoid capturing, just in case. (TODO: is this actually useful? I'm pretty sure that no, but please check.)
+        self.input_zonotope = Zonotope(A, a0)
+
+    def forward(self):
+        return self.znet(self.input_zonotope)
 
     def analyze(self, verbose=False):
         """Returns True iff the `self.__net` is verifiably robust on `self.input_zonotope`
@@ -81,15 +85,15 @@ class Analyzer:
         # net = NetByLayers(net_layers)
         # self.run_in_parallel(self.input_zonotope, net)
 
-        # TODO: select optimizer and parameters https://pytorch.org/docs/stable/optim.html. E.g: 
+        # TODO: select optimizer and parameters https://pytorch.org/docs/stable/optim.html. E.g:
         # optimizer = optim.SGD(<parameters>, lr=0.01, momentum=0.9)
         optimizer = optim.Adam([self.zloss.logit_lambdas, *self.znet.lambdas], lr=0.01)
-        
+
         # zm.zReLU has the feature that setting the requires_gradient to False makes us use DeepZ, e.g:
         # self.zloss.logit_lambdas.requires_grad = False
 
-        dataset = [self.input_zonotope] # TODO: can run the optimizer on different zonotopes in general
-                                        # e.g we could try partitioning the zonotopes into smaller zonotopes and verify them separately
+        dataset = [self.input_zonotope]  # TODO: can run the optimizer on different zonotopes in general
+        # e.g we could try partitioning the zonotopes into smaller zonotopes and verify them separately
         for inp_zono in dataset:
             if verbose: print("Analyzer.analyze(): performing the optimization on inp_zono: {}".format(inp_zono))
             # aaaand actually for now just run this optimizer ad infinitum. TODO: do something smarter
@@ -100,8 +104,11 @@ class Analyzer:
                     print("Analyzer.analyze(): iteration #{}".format(while_counter))
                 optimizer.zero_grad()
                 out_zono = self.znet(inp_zono, verbose=verbose)
+
                 loss = self.zloss(out_zono, verbose=verbose)
-                if loss <= 0: # TODO: floating point problems? (there is indeed still a pb here, since zMaxSumOfViolations is non-negative.)
+
+                if loss <= 0:  # TODO: floating point problems? (there is indeed still a pb here, since zMaxSumOfViolations is non-negative.)
+
                     if verbose: print("Analyzer.analyze(): found loss<=0 (loss={}) after {} iterations. The property is proved.".format(loss.item(), while_counter))
                     return True
                 if verbose:
@@ -109,8 +116,15 @@ class Analyzer:
                     print("Analyzer.analyze(): doing loss.backward() and optimizer.step()")
                 loss.backward()
                 optimizer.step()
+
+                with torch.no_grad():
+                    for i in range(len(self.znet.lambdas)):
+                        self.znet.lambdas[i].clamp_(max=1)
+                        self.znet.lambdas[i].clamp_(min=0)
+
                 while_counter += 1
 
+                """
                 # for DEBUG: end the analysis early
                 # let run for break_at_iter steps
                 break_at_iter = 20
@@ -123,8 +137,9 @@ class Analyzer:
                 # print("self.zloss.logit_lambdas:\n{}\nself.znet.lambdas:\n{}".format(self.zloss.logit_lambdas, self.znet.lambdas)) # should contain the same thing as what we just printed
                 print("For convenience in testing, we exit now (after {} iterations), even though we still have time before timeout.".format(break_at_iter))
                 return False
+                """
 
-
+        return False
 
     # Debugging utilities (DEBUG: obviously, none of these should be run in prod)
     # ~~~~~~~~~~~~~~~~~~~
@@ -174,7 +189,6 @@ class Analyzer:
             print("next_point (ground truth):\n", next_point)
             print("next_zono.a0:\n", next_zono.a0)
             print("next_zono.A:\n", next_zono.A)
-
 
     def make_dot_loss(self, gv_filename):
         """Use https://github.com/szagoruyko/pytorchviz to visualize the computation graph of the loss.

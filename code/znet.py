@@ -6,6 +6,7 @@ from networks import Normalization
 
 import zmodules as zm
 
+
 # does NOT implemented zm._zModule, but implements nn.Module directly
 class zNet(nn.Module):
     """
@@ -28,38 +29,37 @@ class zNet(nn.Module):
         net (networks.FullyConnected || networks.Conv): the corresponding network in the concrete
     """
 
-    def __init__(self, net):
+    def __init__(self, net, input_shape=(1, 28, 28), nb_classes=10):
         super().__init__()
         self.__net = net
         for p in net.parameters():
             p.requires_grad = False  # avoid doing useless computations
-        
+
         self.zlayers = []
-        out_dim = torch.Size([1, 28, 28]) # the in/out_dim of the **previous** layer
+        out_dim = torch.Size(input_shape)  # the in/out_dim of the **previous** layer
         for layer in net.layers:
             # print(layer, out_dim)
             if isinstance(layer, nn.ReLU):
-                zlayer = zm.zReLU(in_dim=out_dim) # needs to set in_dim right away.
+                zlayer = zm.zReLU(in_dim=out_dim)  # needs to set in_dim right away.
             elif isinstance(layer, nn.Linear):
-                zlayer = zm.zLinear(layer) # the constructor expects the concrete layer directly.
+                zlayer = zm.zLinear(layer)  # the constructor expects the concrete layer directly.
             elif isinstance(layer, nn.Conv2d):
-                zlayer = zm.zConv2d(layer) # the constructor expects the concrete layer directly.
+                zlayer = zm.zConv2d(layer)  # the constructor expects the concrete layer directly.
             elif isinstance(layer, Normalization):
                 zlayer = zm.zNormalization(layer.mean, layer.sigma)
             elif isinstance(layer, nn.Flatten):
-                zlayer = zm.zFlatten(in_dim=out_dim) # needs to set in_dim right away.
+                zlayer = zm.zFlatten(in_dim=out_dim)  # needs to set in_dim right away.
             zlayer.in_dim = out_dim
             out_dim = zlayer.out_dim()
             self.zlayers.append(zlayer)
 
         # sanity-check the dimensions (i.e check that pyTorch doesn't do black-magic-broadcasting that ends up being compatible but not what we want)
         # Rk: this is not necessary, it's just a cool upside of the fact that we need to store in_dim for each zlayer
-        out_dim = torch.Size([1, 28, 28]) # the out_dim of the **previous** layer
         for zlayer in self.zlayers:
             # print(zlayer)
             assert zlayer.in_dim == out_dim
             out_dim = zlayer.out_dim()
-        assert out_dim == torch.Size([10])
+        assert out_dim == torch.Size([nb_classes])
 
         self.zonotopes = [None] * (len(self.zlayers) + 1)
 
@@ -67,7 +67,8 @@ class zNet(nn.Module):
         self.relu_ind = []
         for idx, zlayer in enumerate(self.zlayers):
             if isinstance(zlayer, zm.zReLU):
-                self.lambdas.append(zlayer.lambda_layer) # captures the nn.Parameters (in python, "Object references are passed by value")
+                self.lambdas.append(
+                    zlayer.lambda_layer)  # captures the nn.Parameters (in python, "Object references are passed by value")
                 self.relu_ind.append(idx)
 
     def __str__(self):
@@ -94,16 +95,15 @@ class zNet(nn.Module):
             input_zonotope (Zonotope): the zonotope, of shape A.shape=[784, 1, 28, 28]
         """
         if verbose: print("entering zNet.forward()...")
-        zonotope = input_zonotope.reset() # avoid capturing, just in case. (TODO: is this actually useful?)
+        zonotope = input_zonotope.reset()  # avoid capturing, just in case. (TODO: is this actually useful?)
         self.zonotopes[0] = zonotope
         for idx, zlayer in enumerate(self.zlayers):
             if verbose:
                 print("calling zNet.forward_step() on layer #", idx)
                 # print("self.zonotopes[{}]: {}".format(idx, self.zonotopes[idx]) )
-            self.zonotopes[idx+1] = self.forward_step(self.zonotopes[idx], zlayer, verbose=verbose)
+            self.zonotopes[idx + 1] = self.forward_step(self.zonotopes[idx], zlayer, verbose=verbose)
         if verbose: print("finished running zNet.forward().")
         return self.zonotopes[-1]
-
 
 
 # same as zNet, zLoss (and its subclasses) does NOT implemented zm._zModule, but implements nn.Module directly
@@ -113,17 +113,20 @@ class zLoss(nn.Module):
     Takes the logit-layer zonotope as input and should "translate" the property that the (arg)max of the logits is true_label, namely:
         IF self.forward() returns a value <= 0, THEN the property is proved
     """
+
     def __init__(self):
         super().__init__()
-    def forward():
+
+    def forward(self, zonotope, verbose=False):
         # fake abstract class
         raise NotImplementedError("Do not use the class zLoss directly, but one of its subclasses")
+
 
 class zMaxSumOfViolations(zLoss):
     """
     The max sum of violations over the zonotope:
         max_{x(=logit) in output_zonotope} sum_{label l s.t logit[l] > logit[true_label]} (logit[l] - logit[true_label])
-    Actually we didn't find any other reasonable choice of loss, cf formulas.pdf. 
+    Actually we didn't find any other reasonable choice of loss, cf formulas.pdf.
     """
 
     def __init__(self, true_label, nb_classes=10):
@@ -137,14 +140,14 @@ class zMaxSumOfViolations(zLoss):
     def logit_lambdas(self):
         """Return the lambdas used by the ReLU layer.
         Note that this leaks the object, which is what we want, since we need to pass it as parameter to the optimizer.
-        
+
         Return: nn.Parameter of shape torch.Size([1, self.nb_classes])
         """
         return self.__relu_zlayer.lambda_layer
 
     def forward(self, zonotope, verbose=False):
         """
-        Args: 
+        Args:
             zonotope (Zonotope): the zonotope corresponding to the last layer of a zNet, i.e the zonotope of a logit vector
         """
         assert zonotope.dim == torch.Size([self.nb_classes])
@@ -156,4 +159,3 @@ class zMaxSumOfViolations(zLoss):
         if verbose:
             print("finished running zMaxSumOfViolations.forward().")
         return res
-        
