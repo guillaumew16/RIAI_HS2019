@@ -13,7 +13,7 @@ class Zonotope:
         Z (torch.Tensor): tensor with shape [1 + nb_error_terms, *<shape of nn layer>].
             Z[0] corresponds to the center of the zonotope (a0 in the old version).
             Z[1:] corresponds to the epsilon-coefficient tensor (A in the old version).
-    
+
     Old attributes, now accessible as getters:
         A (torch.Tensor): the tensor described in formulas.pdf, with shape [nb_error_terms, *<shape of nn layer>]
             Note that we do NOT support constant zonotopes, i.e there must be >= 1 error terms. (Almost everything would work, but relu() would be even trickier.)
@@ -35,6 +35,7 @@ class Zonotope:
     @property
     def a0(self):
         return self.Z[:1]
+
     @property
     def A(self):
         return self.Z[1:]
@@ -47,6 +48,7 @@ class Zonotope:
     def dim(self):
         """Dimension of the ambient space, i.e shape of nn layer"""
         return self.Z.shape[1:]
+
     @property
     def nb_error_terms(self):
         return self.Z.shape[0] - 1
@@ -65,7 +67,7 @@ class Zonotope:
             return Zonotope(self.Z + other.Z)
         else:
             assert not isinstance(other, torch.Tensor) or other.numel() == 1 \
-                or other.shape == self.dim or other.shape == self.a0.shape  # keep tight control over the broadcasting magic
+                   or other.shape == self.dim or other.shape == self.a0.shape  # keep tight control over the broadcasting magic
             return Zonotope(self.A, self.a0 + other)
 
     def __neg__(self):
@@ -87,7 +89,7 @@ class Zonotope:
 
     def sum(self):
         """Returns the zonotope of the sum of all variables."""
-        dims_to_reduce = list( range(1, len(self.Z.shape)) )  # sum over all dimensions except the first one (corresponding to error terms' index)
+        dims_to_reduce = list(range(1, len(self.Z.shape)))  # sum over all dimensions except the first one (corresponding to error terms' index)
         return Zonotope(self.Z.sum(dims_to_reduce, keepdim=True))
 
     def lower(self):
@@ -120,9 +122,10 @@ class Zonotope:
             conv (torch.nn.Conv2d)"""
         # TODO: do some tests to see if one is faster than the other. (my guess is that it changes almost nothing.)
         # Implementation 1:
-        res_Z = conv2d(self.Z, weight=conv.weight, bias=None, stride=conv.stride, padding=conv.padding, dilation=conv.dilation, groups=conv.groups)
+        res_Z = conv2d(self.Z, weight=conv.weight, bias=None, stride=conv.stride, padding=conv.padding,
+                       dilation=conv.dilation, groups=conv.groups)
         to_add = torch.zeros_like(res_Z)
-        to_add[0] = conv.bias.view(*conv.bias.shape, 1, 1) # encapsulates in single pixels (height and width 1)
+        to_add[0] = conv.bias.view(*conv.bias.shape, 1, 1)  # encapsulates in single pixels (height and width 1)
         return Zonotope(res_Z + to_add)
         # Implementation 2:
         # return Zonotope(
@@ -132,7 +135,7 @@ class Zonotope:
 
     def linear_transformation(self, linear):
         """Apply a linear layer to this zonotope.
-        Args: 
+        Args:
             linear (nn.Linear): the linear layer with the same weight and bias as the corresponding concrete layer.
                 In fact, using the concrete layer itself is just fine."""
         # TODO: do some tests to see if one is faster than the other. (my guess is that it changes almost nothing.)
@@ -165,7 +168,11 @@ class Zonotope:
 
         lambda_layer = torch.zeros([1, *self.dim])
         lambda_layer[update_map] = u[update_map] / (
-                    u[update_map] - l[update_map])  # equivalently, replace "[:,*]" by "[0,*]"
+                u[update_map] - l[update_map])  # equivalently, replace "[:,*]" by "[0,*]"
+
+        lambda_layer.clamp_(max=1)
+        lambda_layer.clamp_(min=0)
+
         return lambda_layer
 
     # TODO: see if we can use the Z form instead of distinguishing A and a0, as we did for the other transformations.
