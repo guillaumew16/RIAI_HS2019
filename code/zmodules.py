@@ -98,10 +98,11 @@ class zFlatten(_zModule):
         return zonotope.flatten()
 
 
-"""For linear layers, the constructor expects the concrete layer directly."""
-
-
 class zLinear(_zModule):
+    """For linear layers, the constructor expects the concrete layer directly.
+    Args:
+        concrete_layer (nn.Linear): the corresponding layer in the concrete
+    """
     def __init__(self, concrete_layer):
         super().__init__()
         self.__concrete_layer = concrete_layer
@@ -118,15 +119,12 @@ class zLinear(_zModule):
         return zonotope.linear_transformation(self.__concrete_layer)
 
 
-"""For convolution layers, the constructor expects the concrete layer directly."""
-
-
 class zConv2d(_zModule):
+    """For convolution layers, the constructor expects the concrete layer directly.
+    Args:
+        conv_layer (nn.Conv2d): the corresponding layer in the concrete
+    """
     def __init__(self, concrete_layer):
-        """
-        Args:
-            conv_layer (nn.Conv2d): the corresponding layer in the concrete
-        """
         super().__init__()
         self.__concrete_layer = concrete_layer
         self.weight = concrete_layer.weight.detach()
@@ -142,9 +140,8 @@ class zConv2d(_zModule):
                 return (x, x)
             else:
                 return x
-
-        kernel_size = make_tuple(
-            self.__concrete_layer.kernel_size)  # torch.nn.Conv2d.kernel_size is int || tuple of int, int
+        # torch.nn.Conv2d.kernel_size, stride, padding, dilation are int || tuple of (int, int). out_channels is int.
+        kernel_size = make_tuple(self.__concrete_layer.kernel_size)
         stride = make_tuple(self.__concrete_layer.stride)
         padding = make_tuple(self.__concrete_layer.padding)
         dilation = make_tuple(self.__concrete_layer.dilation)

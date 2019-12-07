@@ -261,10 +261,9 @@ class Zonotope:
                 They must be in the range [0, 1].
                 If None, do the vanilla DeepZ transformation.
         """
-        if False: # TODO: do this
-            if lambdas is not None:
-                if (lambdas < 0).any() or (lambdas > 1).any():
-                    raise ValueError("lambdas must be in [0, 1]")
+        if lambdas is not None:
+            if (lambdas < 0).any() or (lambdas > 1).any():
+                raise ValueError("lambdas must be in [0, 1]")
 
         # TODO: should we do .clone().detach() or must we preserve gradient?
         a0 = self.a0.clone()
@@ -322,7 +321,7 @@ class Zonotope:
     def relu(self, lambdas=None):
         print("Using Zonotope.relu_simpler()")
         res_simpl = self.relu_simpler(lambdas)
-        # DEBUG
+        # DEBUG: compare the two implementations
         # res_normal = self.relu_normal(lambdas) # need to rename the normal method for this to work
         # assert( torch.allclose(res_simpl.Z, res_normal.Z) )
 

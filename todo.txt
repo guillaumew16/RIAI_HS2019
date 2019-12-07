@@ -3,7 +3,6 @@ Long-term:
 - When noticed, mark suspicious lines as TODO or DEBUG with a comment
 - Reduce the size of the computation graph of loss and znet
 - Write a hyperparameter search in order to test different optimizer and different parameters of these optimizers, doing CV on mnist with random epsilons
-- Instead of hyperparameter selection as described above, we could even do ensembling of the best methods found by that process.
 
 Todo before production:
 - check for TODOs in the source

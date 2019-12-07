@@ -27,18 +27,18 @@ class zNet(nn.Module):
 
     Args:
         net (networks.FullyConnected || networks.Conv): the corresponding network in the concrete
-        input_shape: the expected shape of a single input of the network, default = (1, 28, 28), which is the shape of a mnist image.
-        nb_classes: the number of classes for the dataset, default = 10, which is the number of classes in mnist.
+        input_shape (torch.Size): the expected shape of a single input of the network, default = (1, 28, 28), which is the shape of a mnist image.
+        nb_classes (int, optional): the number of classes for the dataset, default=10, which is the number of classes in mnist.
     """
 
-    def __init__(self, net, input_shape=(1, 28, 28), nb_classes=10):
+    def __init__(self, net, input_shape=torch.Size([1, 28, 28]), nb_classes=10):
         super().__init__()
         self.__net = net
         for p in net.parameters():
             p.requires_grad = False  # avoid doing useless computations
 
         self.zlayers = []
-        out_dim = torch.Size(input_shape)  # the in/out_dim of the **previous** layer
+        out_dim = input_shape  # the in/out_dim of the **previous** layer
         for layer in net.layers:
             # print(layer, out_dim)
             if isinstance(layer, nn.ReLU):
@@ -57,7 +57,7 @@ class zNet(nn.Module):
 
         # sanity-check the dimensions (i.e check that pyTorch doesn't do black-magic-broadcasting that ends up being compatible but not what we want)
         # Rk: this is not necessary, it's just a cool upside of the fact that we need to store in_dim for each zlayer
-        out_dim = torch.Size(input_shape)
+        out_dim = input_shape
         for zlayer in self.zlayers:
             # print(zlayer)
             assert zlayer.in_dim == out_dim
@@ -98,8 +98,7 @@ class zNet(nn.Module):
             input_zonotope (Zonotope): the zonotope, of shape A.shape=[784, 1, 28, 28]
         """
         if verbose: print("entering zNet.forward()...")
-        zonotope = input_zonotope.reset()  # avoid capturing, just in case. (TODO: is this actually useful?)
-        self.zonotopes[0] = zonotope
+        self.zonotopes[0] = input_zonotope.reset()  # avoid capturing, just in case. (TODO: is this actually useful?)
         for idx, zlayer in enumerate(self.zlayers):
             if verbose:
                 print("calling zNet.forward_step() on layer #", idx)
@@ -130,6 +129,9 @@ class zMaxSumOfViolations(zLoss):
     The max sum of violations over the zonotope:
         max_{x(=logit) in output_zonotope} sum_{label l s.t logit[l] > logit[true_label]} (logit[l] - logit[true_label])
     Actually we didn't find any other reasonable choice of loss, cf formulas.pdf.
+    Args:
+        true_label (int): the true label of the region to verify, with 0 <= true_label < nb_classes.
+        nb_classes (int, optional): the number of classes for the dataset, default=10, which is the number of classes in mnist.
     """
 
     def __init__(self, true_label, nb_classes=10):

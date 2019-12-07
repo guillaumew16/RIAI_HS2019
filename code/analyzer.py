@@ -31,7 +31,7 @@ class Analyzer:
         inp (torch.Tensor): input point around which to analyze, of shape torch.Size([1, 1, 28, 28])
         eps (float): epsilon, > 0, eps.shape = inp.shape
         true_label (int): see Attributes
-        nb_classes (int): the number of classes to analyze, default = 10. Can be changed for testing without braking the code.
+        nb_classes (int, optional): the number of classes to analyze, default=10. Allows to do testing without breaking the code.
     """
 
     def __init__(self, net, inp, eps, true_label, nb_classes=10):
@@ -56,9 +56,6 @@ class Analyzer:
         mask = torch.ones(*inp.shape[1:], dtype=torch.bool)  # torch.ones(1, 28, 28, dtype=torch.bool)
         A[:, mask] = torch.diag(((upper - lower) / 2).reshape(-1))
         self.input_zonotope = Zonotope(A, a0)
-
-    def forward(self):
-        return self.znet(self.input_zonotope)
 
     def analyze(self, verbose=False):
         """Returns True iff the `self.__net` is verifiably robust on `self.input_zonotope`
@@ -118,10 +115,10 @@ class Analyzer:
                 loss.backward()
                 optimizer.step()
 
-                with torch.no_grad():
-                    for i in range(len(self.znet.lambdas)):
-                        self.znet.lambdas[i].clamp_(max=1)
-                        self.znet.lambdas[i].clamp_(min=0)
+                with torch.no_grad(): # we can safely ignore grads here. They will be recomputed from scratch at the next evaluation of the loss anyway.
+                    for lambda_layer in self.znet.lambdas:
+                        lambda_layer.clamp_(min=0, max=1)
+                    self.zloss.logit_lambdas.clamp_(min=0, max=1)
 
                 while_counter += 1
 
@@ -140,6 +137,8 @@ class Analyzer:
                 return False
                 """
 
+        import warnings
+        warnings.warn("Analyzer.analyze() is returning False, i.e. we're giving up even though we haven't timed out.")
         return False
 
     # Debugging utilities (DEBUG: obviously, none of these should be run in prod)
