@@ -31,6 +31,7 @@ class Analyzer:
         inp (torch.Tensor): input point around which to analyze, of shape torch.Size([1, 1, 28, 28])
         eps (float): epsilon, > 0, eps.shape = inp.shape
         true_label (int): see Attributes
+        nb_classes (int): the number of classes to analyze, default = 10. Can be changed for testing without braking the code.
     """
 
     def __init__(self, net, inp, eps, true_label, nb_classes=10):

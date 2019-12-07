@@ -27,6 +27,8 @@ class zNet(nn.Module):
 
     Args:
         net (networks.FullyConnected || networks.Conv): the corresponding network in the concrete
+        input_shape: the expected shape of a single input of the network, default = (1, 28, 28), which is the shape of a mnist image.
+        nb_classes: the number of classes for the dataset, default = 10, which is the number of classes in mnist.
     """
 
     def __init__(self, net, input_shape=(1, 28, 28), nb_classes=10):
