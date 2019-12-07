@@ -41,7 +41,7 @@ class Analyzer:
         self.__eps = eps
         self.true_label = true_label
 
-        self.znet = zNet(net, input_shape=inp.shape, nb_classes=nb_classes)
+        self.znet = zNet(net, input_shape=inp.shape[1:], nb_classes=nb_classes)
         self.zloss = zMaxSumOfViolations(true_label=true_label, nb_classes=nb_classes)
 
         upper = inp + eps

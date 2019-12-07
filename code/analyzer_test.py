@@ -50,67 +50,57 @@ class AnalyzerTest(unittest.TestCase):
     def test_input_clipping(self):
         x = torch.tensor([[1, 0.98, 0.05, 0.5]])
         eps = 0.06
-        a = Analyzer(MockNet1(x.shape[1]), x, eps, None)
+        a = Analyzer(MockNet1(x.shape[1]), x, eps, 0)
         self.assertTrue(torch.all(torch.isclose(a.input_zonotope.a0, torch.tensor([[0.97, 0.96, 0.055, 0.5]]))))
         self.assertTrue(torch.all(torch.isclose(a.input_zonotope.A, torch.tensor([[0.03, 0, 0, 0],
                                                                                   [0, 0.04, 0, 0],
                                                                                   [0, 0, 0.055, 0],
                                                                                   [0, 0, 0, 0.06]]))))
 
-    def test_lambdas_initialization(self):
-        x = torch.tensor([[0.1, 0.5, 0.9]])
-        eps = 0.05
-        z = Zonotope(torch.tensor([[0.05, 0.05, 0.05]]), x)
-        a = Analyzer(MockNet2(), x, eps, None)
-        
-        zupper = z.upper()
-        zlower = z.lower()
-        intersection_map_ext = (zlower<0) * (zupper>0) # of shape [1,*<shape of `intersection_map` in zonotope.py>]
-
-        self.assertTrue(torch.allclose(a.lambdas[0][intersection_map_ext], (z.upper() / (z.upper() - z.lower()) )[intersection_map_ext] ))
 
     def test_loss(self):
         x = torch.tensor([[0.1, 0.5, 0.9]])
-        a = Analyzer(MockNet2(), x, 0.05, 1)
-        loss = a.loss(a.forward())
+        a = Analyzer(MockNet2(), x, 0.05, 1, nb_classes=3)
+        loss = a.zloss(a.forward())
         self.assertTrue(loss > 0)
 
         x = torch.tensor([[0.1, 0.5, 0.9]])
-        a = Analyzer(MockNet3(x.shape[1]), x, 0.05, 0)
+        a = Analyzer(MockNet3(x.shape[1]), x, 0.05, 0, nb_classes=3)
 
-        loss = a.loss(a.forward())
+        loss = a.zloss(a.forward())
         loss.backward()
         self.assertTrue(loss > 0)
 
-        grad = a.lambdas[0].grad
+        grad = a.znet.lambdas[0].grad
         self.assertTrue(grad[0, 0] > 0)
 
         x = torch.tensor([[0.1, 0.5, 0.9]])
-        a = Analyzer(MockNet4(x.shape[1]), x, 0.05, 0)
+        a = Analyzer(MockNet4(x.shape[1]), x, 0.05, 0, nb_classes=3)
 
-        loss = a.loss(a.forward())
+        loss = a.zloss(a.forward())
         loss.backward()
         self.assertTrue(loss > 0)
 
-        grad = a.lambdas[0].grad
+        grad = a.znet.lambdas[0].grad
         self.assertTrue(grad is not None)
-        grad = a.lambdas[1].grad
+        grad = a.znet.lambdas[1].grad
         self.assertTrue(grad is not None)
 
     def test_analyze(self):
         x = torch.tensor([[0.1, 0.5, 0.9]])
         eps = 0.05
-        a = Analyzer(MockNet2(), x, eps, 2)
+        a = Analyzer(MockNet2(), x, eps, 2, nb_classes=3)
         self.assertTrue(a.analyze())
 
-        a = Analyzer(MockNet2(), x, 0, 2)
+        a = Analyzer(MockNet2(), x, 0, 2, nb_classes=3)
         self.assertTrue(a.analyze())
-
+        """
         a = Analyzer(MockNet2(), x, 0.05, 1)
         self.assertFalse(a.analyze())
 
         a = Analyzer(MockNet2(), x, 0.5, 2)
         self.assertFalse(a.analyze())
+        """
 
 
 if __name__ == '__main__':

@@ -55,6 +55,7 @@ class zNet(nn.Module):
 
         # sanity-check the dimensions (i.e check that pyTorch doesn't do black-magic-broadcasting that ends up being compatible but not what we want)
         # Rk: this is not necessary, it's just a cool upside of the fact that we need to store in_dim for each zlayer
+        out_dim = torch.Size(input_shape)
         for zlayer in self.zlayers:
             # print(zlayer)
             assert zlayer.in_dim == out_dim
