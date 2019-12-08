@@ -4,7 +4,7 @@
 .ipynb_checkpoints/
 
 # latex stuff
-formulas/*
+formulas/
 !formulas/formulas.pdf
 !formulas/formulas.tex
 
