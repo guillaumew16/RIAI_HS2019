@@ -164,3 +164,33 @@ class zMaxSumOfViolations(zLoss):
         if verbose:
             print("finished running zMaxSumOfViolations.forward().")
         return res
+
+
+class zMaxViolations(zLoss):
+    """
+    The max violation is computed as:
+        max_{label l} max_{epsilons} (logit[l] - logit[true_label])
+    Args:
+        true_label (int): the true label of the region to verify, with 0 <= true_label < nb_classes.
+        nb_classes (int, optional): the number of classes for the dataset, default=10, which is the number of classes in mnist.
+    """
+
+    def __init__(self, true_label, nb_classes=10):
+        super().__init__()
+        assert true_label in range(0, nb_classes)
+        self.true_label = true_label
+        self.nb_classes = nb_classes
+
+    def forward(self, zonotope, verbose=False):
+        """
+        Args:
+            zonotope (Zonotope): the zonotope corresponding to the last layer of a zNet, i.e the zonotope of a logit vector
+        """
+        assert zonotope.dim == torch.Size([self.nb_classes])
+        if verbose:
+            print("entering zMaxSumOfViolations.forward()...")
+        violation_zono = zonotope - zonotope[self.true_label]
+        res = violation_zono.upper().max()
+        if verbose:
+            print("finished running zMaxSumOfViolations.forward().")
+        return res
