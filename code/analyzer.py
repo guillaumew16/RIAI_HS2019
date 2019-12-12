@@ -85,8 +85,10 @@ class Analyzer:
 
         # TODO: select optimizer and parameters https://pytorch.org/docs/stable/optim.html. E.g:
         # optimizer = optim.SGD(<parameters>, lr=0.01, momentum=0.9)
-        optimizer = optim.Adam([*self.znet.lambdas], lr=0.01)
-
+        if self.zloss.has_lambdas:
+            optimizer = optim.Adam([self.zloss.logit_lambdas, *self.znet.lambdas], lr=0.01)
+        else:
+            optimizer = optim.Adam([*self.znet.lambdas], lr=0.01)
         # zm.zReLU has the feature that setting the requires_gradient to False makes us use DeepZ, e.g:
         # self.zloss.logit_lambdas.requires_grad = False
 
@@ -118,6 +120,8 @@ class Analyzer:
                 with torch.no_grad(): # we can safely ignore grads here. They will be recomputed from scratch at the next evaluation of the loss anyway.
                     for lambda_layer in self.znet.lambdas:
                         lambda_layer.clamp_(min=0, max=1)
+                    if self.zloss.has_lambdas:
+                        self.zloss.logit_lambdas.clamp_(min=0, max=1)
 
                 while_counter += 1
 

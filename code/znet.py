@@ -119,6 +119,10 @@ class zLoss(nn.Module):
     def __init__(self):
         super().__init__()
 
+    @property
+    def has_lambdas(self):
+        raise NotImplementedError("Do not use the class zLoss directly, but one of its subclasses")
+
     def forward(self, zonotope, verbose=False):
         # fake abstract class
         raise NotImplementedError("Do not use the class zLoss directly, but one of its subclasses")
@@ -140,6 +144,10 @@ class zMaxSumOfViolations(zLoss):
         self.true_label = true_label
         self.nb_classes = nb_classes
         self.__relu_zlayer = zm.zReLU(in_dim=torch.Size([self.nb_classes]))
+
+    @property
+    def has_lambdas(self):
+        return True
 
     @property
     def logit_lambdas(self):
@@ -180,6 +188,10 @@ class zMaxViolations(zLoss):
         assert true_label in range(0, nb_classes)
         self.true_label = true_label
         self.nb_classes = nb_classes
+
+    @property
+    def has_lambdas(self):
+        return False
 
     def forward(self, zonotope, verbose=False):
         """
