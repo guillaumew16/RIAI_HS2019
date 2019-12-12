@@ -319,7 +319,6 @@ class Zonotope:
 
     # DEBUG: redefine relu()
     def relu(self, lambdas=None):
-        print("Using Zonotope.relu_simpler()")
         res_simpl = self.relu_simpler(lambdas)
         # DEBUG: compare the two implementations
         # res_normal = self.relu_normal(lambdas) # need to rename the normal method for this to work
