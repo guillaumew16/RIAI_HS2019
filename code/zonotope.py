@@ -125,16 +125,23 @@ class Zonotope:
             conv (torch.nn.Conv2d)"""
         # TODO: do some tests to see if one is faster than the other. (my guess is that it changes almost nothing.)
         # Implementation 1:
-        res_Z = conv2d(self.Z, weight=conv.weight, bias=None, stride=conv.stride, padding=conv.padding,
-                       dilation=conv.dilation, groups=conv.groups)
-        to_add = torch.zeros_like(res_Z)
-        to_add[0] = conv.bias.view(*conv.bias.shape, 1, 1)  # encapsulates in single pixels (height and width 1)
-        return Zonotope(res_Z + to_add)
+        # res_Z = conv2d(self.Z, weight=conv.weight, bias=None, stride=conv.stride, padding=conv.padding,
+        #                dilation=conv.dilation, groups=conv.groups)
+        # to_add = torch.zeros_like(res_Z)
+        # to_add[0] = conv.bias.view(*conv.bias.shape, 1, 1)  # encapsulates in single pixels (height and width 1)
+        # return Zonotope(res_Z + to_add)
         # Implementation 2:
         # return Zonotope(
         #     conv2d(self.A, weight=conv.weight, bias=None, stride=conv.stride, padding=conv.padding, dilation=conv.dilation, groups=conv.groups),
         #     conv2d(self.a0, weight=conv.weight, bias=conv.bias, stride=conv.stride, padding=conv.padding, dilation=conv.dilation, groups=conv.groups)
         # )
+        # Implementation 3:
+        res = Zonotope(
+            conv2d(self.Z, weight=conv.weight, bias=None, stride=conv.stride, padding=conv.padding,
+                   dilation=conv.dilation, groups=conv.groups)
+        )
+        res.a0.add_( conv.bias.view(*conv.bias.shape, 1, 1) )  # encapsulates in single pixels (height and width 1)
+        return res
 
     def linear_transformation(self, linear):
         """Apply a linear layer to this zonotope.
@@ -143,15 +150,19 @@ class Zonotope:
                 In fact, using the concrete layer itself is just fine."""
         # TODO: do some tests to see if one is faster than the other. (my guess is that it changes almost nothing.)
         # Implementation 1:
-        res_Z = self.Z.matmul(linear.weight.t())
-        to_add = torch.zeros_like(res_Z)
-        to_add[0] = linear.bias
-        return Zonotope(res_Z + to_add)
+        # res_Z = self.Z.matmul(linear.weight.t())
+        # to_add = torch.zeros_like(res_Z)
+        # to_add[0] = linear.bias
+        # return Zonotope(res_Z + to_add)
         # Implementation 2:
         # return Zonotope(
         #     self.A.matmul(linear.weight.t()),
         #     linear(self.a0)
         # )
+        # Implementation 3:
+        res = Zonotope( self.Z.matmul(linear.weight.t()) )
+        res.a0.add_(linear.bias)
+        return res
 
     # TODO: do some tests to see whether using the full initialization map helps. So far I found one (and only one) test case where it did (fc5 on fc5/img0)
     # TODO: that might not be the case anymore with the "clamp lambda to [0,1]" fix
@@ -267,8 +278,7 @@ class Zonotope:
                 raise ValueError("lambdas must be in [0, 1]")
 
         # TODO: should we do .clone().detach() or must we preserve gradient?
-        a0 = self.a0.clone()
-        A = self.A.clone()
+        res = Zonotope(self.Z.clone())
 
         l = self.lower()
         u = self.upper()
@@ -278,13 +288,11 @@ class Zonotope:
         ident_neurons  = (l >= 0)[0] # neurons to be left unchanged
         approx_neurons = ((l < 0) * (u > 0))[0] # neurons that require approximation
 
-        a0[0, zero_neurons] = 0
-        A[:, zero_neurons] = 0
-        # a0[0, ident_neurons]: unchanged
-        # A[:, ident_neurons]: unchanged
+        res.Z[:, zero_neurons] = 0
+        # A/a0[0, ident_neurons]: unchanged
 
         nb_new_error_terms = torch.nonzero(approx_neurons).size(0) # 1 new error term for each neuron
-        A = torch.cat([ A, torch.zeros(nb_new_error_terms, *self.dim) ], dim=0) # add new error terms of magnitude 0 for all neurons
+        res.Z = torch.cat([ res.Z, torch.zeros(nb_new_error_terms, *self.dim) ], dim=0) # add new error terms of magnitude 0 for all neurons
 
         # A/a0[:, zero_neurons] and A/a0[:, ident_neurons] now have the value we wanted. Now update A/a0[:, approx_neurons].
         apn = approx_neurons
@@ -312,11 +320,11 @@ class Zonotope:
             mu[use_u_map] =   u[use_u_map] * (1 - lambdas[use_u_map])  / 2
         
         # Compute new a0 and A
-        a0[:, apn] = a0[:, apn] * lambdas + mu
-        A[:self.nb_error_terms, apn] = A[:self.nb_error_terms, apn] * lambdas   # old epsilons
-        A[self.nb_error_terms:, apn] = torch.diag(mu.reshape(-1))               # new epsilons
-        assert( A[self.nb_error_terms:, apn].nonzero().size(0) == mu.nonzero().size(0) )
-        return Zonotope(A, a0)
+        res.Z[:1+self.nb_error_terms, apn] = res.Z[:1+self.nb_error_terms, apn] * lambdas # zonotope center + old epsilons
+        res.a0[0, apn] = res.a0[0, apn] + mu                                            # recenter the zonotope
+        res.A[self.nb_error_terms:, apn] = torch.diag(mu.reshape(-1))                   # new epsilons
+        assert( res.A[self.nb_error_terms:, apn].nonzero().size(0) == mu.nonzero().size(0) )
+        return res
 
 
     def relu(self, lambdas=None):
