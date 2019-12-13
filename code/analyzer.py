@@ -5,7 +5,7 @@ import torch.optim as optim
 from zonotope import Zonotope
 from networks import Normalization
 
-from znet import zNet, zLoss, zMaxViolations
+from znet import zNet, zLoss, zMaxSumOfViolations, zMaxViolation
 
 
 class Analyzer:
@@ -43,7 +43,8 @@ class Analyzer:
         self.true_label = true_label
 
         self.znet = zNet(net, input_shape=inp.shape[1:], nb_classes=nb_classes)
-        self.zloss = zMaxViolations(true_label=true_label, nb_classes=nb_classes)
+        # self.zloss = zMaxSumOfViolations(true_label=true_label, nb_classes=nb_classes)
+        self.zloss = zMaxViolation(true_label=true_label, nb_classes=nb_classes)
 
         upper = inp + eps
         lower = inp - eps

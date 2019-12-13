@@ -170,16 +170,15 @@ class Zonotope:
 
         lambda_layer = torch.zeros(1, *self.dim)
         lambda_layer[update_map] = u[update_map] / (
-                u[update_map] - l[update_map])  # equivalently, replace "[:,*]" by "[0,*]"
+                u[update_map] - l[update_map])
 
-        lambda_layer.clamp_(max=1)
-        lambda_layer.clamp_(min=0)
+        lambda_layer.clamp_(min=0, max=1)
 
         return lambda_layer
 
-    # TODO: see if we can use the Z form instead of distinguishing A and a0, as we did for the other transformations.
-    # Not much hope though, and arguably it's normal: relu is the hard case.
-    def relu(self, lambdas=None):
+    # We didn't manage to use the Z form instead of distinguishing A and a0, as we did for the other transformations. 
+    # Arguably it's normal: relu is the hard case.
+    def relu_normal(self, lambdas=None):
         """Apply a ReLU layer to this zonotope.
         Args:
             lambdas (torch.Tensor || None): the lambdas to use, of shape [1, <*shape of nn layer>].
@@ -252,7 +251,6 @@ class Zonotope:
         A[self.A.shape[0]:, intersection_map] = torch.diag((mu[:, intersection_map]).reshape(-1))
         return Zonotope(A, a0)
 
-    # TODO: finish debugging all this function
     def relu_simpler(self, lambdas=None):
         """A more readable implementation of relu(). Possibly this yields a simpler computation graph.
         Apply a ReLU layer to this zonotope.
@@ -313,11 +311,11 @@ class Zonotope:
         # Compute new a0 and A
         a0[:, apn] = a0[:, apn] * lambdas + mu
         A[:self.nb_error_terms, apn] = A[:self.nb_error_terms, apn] * lambdas   # old epsilons
-        A[self.nb_error_terms:, apn] = torch.diag(mu.reshape(-1))               # new epsilons # TODO: check and/or fix this syntax
+        A[self.nb_error_terms:, apn] = torch.diag(mu.reshape(-1))               # new epsilons
         assert( A[self.nb_error_terms:, apn].nonzero().size(0) == mu.nonzero().size(0) )
         return Zonotope(A, a0)
 
-    # DEBUG: redefine relu()
+
     def relu(self, lambdas=None):
         res_simpl = self.relu_simpler(lambdas)
         # DEBUG: compare the two implementations

@@ -174,7 +174,7 @@ class zMaxSumOfViolations(zLoss):
         return res
 
 
-class zMaxViolations(zLoss):
+class zMaxViolation(zLoss):
     """
     The max violation is computed as:
         max_{label l} max_{epsilons} (logit[l] - logit[true_label])
@@ -200,7 +200,7 @@ class zMaxViolations(zLoss):
         """
         assert zonotope.dim == torch.Size([self.nb_classes])
         if verbose:
-            print("entering zMaxSumOfViolations.forward()...")
+            print("entering zMaxViolation.forward()...")
         violation_zono = zonotope - zonotope[self.true_label]
         res = violation_zono.upper().max()
         if verbose:
