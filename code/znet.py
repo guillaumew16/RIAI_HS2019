@@ -111,7 +111,7 @@ class zNet(nn.Module):
 # same as zNet, zLoss (and its subclasses) does NOT implemented zm._zModule, but implements nn.Module directly
 class zLoss(nn.Module):
     """
-    A wrapper class for all the loss function implementations (in case we end up finding some more).
+    A wrapper class for all the loss function implementations.
     Takes the logit-layer zonotope as input and should "translate" the property that the (arg)max of the logits is true_label, namely:
         IF self.forward() returns a value <= 0, THEN the property is proved
     """

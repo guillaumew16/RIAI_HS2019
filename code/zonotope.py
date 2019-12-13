@@ -8,6 +8,8 @@ class Zonotope:
 
     Trivially implements methods `__add__`, `__neg__`, `__sub__`, `__mul__`, `__getitem__`, `sum`,  making e.g Analyzer.loss() concise.
     (These are only convenience stuff, not an attempt of "subclassing Tensors". pyTorch functions are always called on the underlying Tensors `a0` and `A`.)
+    
+    In all methods that return a new Zonotope, the original tensor self.Z is NOT shared or leaked. The only exception is `__getitem__`.
 
     Attributes:
         Z (torch.Tensor): tensor with shape [1 + nb_error_terms, *<shape of nn layer>].
@@ -78,6 +80,7 @@ class Zonotope:
 
     def __mul__(self, other):
         """Multiplication by a constant"""
+        assert not isinstance(other, torch.Tensor) or other.shape == torch.Size([1])
         return Zonotope(self.Z * other)
 
     def __getitem__(self, item):
@@ -277,7 +280,7 @@ class Zonotope:
 
         a0[0, zero_neurons] = 0
         A[:, zero_neurons] = 0
-        # a[0, ident_neurons]: unchanged
+        # a0[0, ident_neurons]: unchanged
         # A[:, ident_neurons]: unchanged
 
         nb_new_error_terms = torch.nonzero(approx_neurons).size(0) # 1 new error term for each neuron
