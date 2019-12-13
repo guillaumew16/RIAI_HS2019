@@ -300,7 +300,7 @@ class Zonotope:
 
         if lambdas is None: # minor optimization: if we use vanilla DeepZ, the exact expressions are already known
             lambdas = breaking_point
-            mu = -l / lambdas / 2
+            mu = -l * lambdas / 2
         else:
             use_l_map = (lambdas >= breaking_point)
             use_u_map = ~ use_l_map
