@@ -39,6 +39,10 @@ parser.add_argument('--method',
                     choices=['my_pgd', 'art_carlini', 'art_pgd'], # TODO: add more methods
                     default='art_carlini',
                     help="Method to use to generate adversarial examples. (default: ART's PGD attack)")
+parser.add_argument('--eps',
+                    type=float,
+                    default=0.1,
+                    help='Maximum epsilon, strictly between 0.0 and 0.2. (default: 0.1)')
 args = parser.parse_args()
 
 # define "globals"
@@ -47,11 +51,14 @@ BASE_DIR_PATH = '../test_cases_generated/' + args.net
 NUM_EXAMPLES_TO_GENERATE = args.num
 DO_SANITY_CHECK = args.sc
 ATTACK_METHOD = args.method
+if args.eps >= 0.2 or args.eps <= 0.0:
+    raise UserWarning("Bad value for maximum epsilon: expected float strictly between 0.0 and 0.2, got {}".format(args.eps))
+MAX_EPSILON = args.eps
 
 DEVICE = 'cpu'
 INPUT_SIZE = 28
 DATASET_PATH = '../mnist_data'
-MAX_EPSILON=0.15
+BATCH_SIZE = min(NUM_EXAMPLES_TO_GENERATE, 5)
 
 # create output dirs if they don't exist yet
 os.makedirs(BASE_DIR_PATH+"/maybe_robust", exist_ok=True)
@@ -68,8 +75,8 @@ def load():
     mnist_dataset = datasets.MNIST(DATASET_PATH, train=True, download=True, transform=transforms.Compose(
         [transforms.ToTensor()]
     ))
-    mnist_loader = torch.utils.data.DataLoader(mnist_dataset, shuffle=True, batch_size=NUM_EXAMPLES_TO_GENERATE)
-    artDataGenerator = PyTorchDataGenerator(mnist_loader, size=None, batch_size=NUM_EXAMPLES_TO_GENERATE)
+    mnist_loader = torch.utils.data.DataLoader(mnist_dataset, shuffle=True, batch_size=BATCH_SIZE)
+    artDataGenerator = PyTorchDataGenerator(mnist_loader, size=None, batch_size=BATCH_SIZE)
 
     # make attacker
     if ATTACK_METHOD == "my_pgd":
@@ -88,12 +95,12 @@ def load():
             attacker = CarliniLInfMethod(classifier,
                                         max_iter=100, # default=10
                                         eps=MAX_EPSILON,
-                                        batch_size=NUM_EXAMPLES_TO_GENERATE)
+                                        batch_size=BATCH_SIZE)
         elif ATTACK_METHOD == "art_pgd":
             attacker = ProjectedGradientDescent(classifier,
                                         eps=MAX_EPSILON,
                                         eps_step=0.05,
-                                        batch_size=NUM_EXAMPLES_TO_GENERATE)
+                                        batch_size=BATCH_SIZE)
         else:
             raise ValueError # the argument parser doesn't allow other values for ATTACK_METHOD
     
@@ -105,55 +112,61 @@ def main():
     net, artDataGenerator, attacker = load()
     uid_gen = generate_uid()
 
-    # run the attack by batch
-    (x_np, y_np) = artDataGenerator.get_batch() # x_np, y_np: np.ndarrays
-    x_adv_np = attacker.generate(x_np, y_np)
-    # convert the whole batch to torch.tensor
-    x_torch = torch.from_numpy(x_np)
-    y_torch = torch.from_numpy(y_np)
-    x_adv_torch = torch.from_numpy(x_adv_np)
+    for _ in range(NUM_EXAMPLES_TO_GENERATE // BATCH_SIZE): # Rk: we may generate less than NUM_EXAMPLES_TO_GENERATE examples
+        # run the attack by batch
+        (x_np, y_np) = artDataGenerator.get_batch() # x_np, y_np: np.ndarrays
+        x_adv_np = attacker.generate(x_np, y_np)
+        # convert the whole batch to torch.tensor
+        x_torch = torch.from_numpy(x_np)
+        y_torch = torch.from_numpy(y_np)
+        x_adv_torch = torch.from_numpy(x_adv_np)
+        check_and_save_batch(x_torch, y_torch, x_adv_torch, net, uid_gen)
     
+def check_and_save_batch(x_torch, y_torch, x_adv_torch, net, uid_gen):
     # check and save the results, image by image
-    for idx in range(NUM_EXAMPLES_TO_GENERATE):
+    for idx in range(BATCH_SIZE):
         x = x_torch[idx].view(1, 1, 28 , 28)
-        true_label = y_np[idx] # numpy.int64
+        true_label = y_torch[idx].item()
         x_adv = x_adv_torch[idx].view(1, 1, 28, 28)
 
         # make sure that the network correctly labels x, else drop this image (don't produce it as test case)
         # indeed, if we kept such test cases, they would immediately trigger an assert in verifier.py anyway
-        # (this means that less than NUM_EXAMPLES_TO_GENERATE examples will actually be generated, but whatever)
         outs = net(x)
         pred_label = outs.max(dim=1)[1].item()
         if pred_label != true_label:
             print("The image x is incorrectly labeled by net. Dropping this case and moving on...")
             continue
 
+        # re-check whether the x_adv is indeed an adversarial example
+        if torch.allclose(x, x_adv, atol=1e-9, rtol=0):
+            # when x_adv is exactly equal to x, this is how ART signals that we failed to find an adversarial example.
+            robust = True
+        else:
+            outs_adv = net(x_adv)
+            label_adv = outs_adv.max(dim=1)[1].item()
+            robust = (label_adv == true_label)
+        
         # determine eps
         eps = (x - x_adv).abs().max()
-        if eps < 0.00001:
-            print("WARNING: eps={}, which is suspiciously low".format(eps))
+        if eps < 0.001 and not robust:
+            print("WARNING: we claim to have found an adversarial example with eps={}, which is suspiciously low".format(eps))
         eps = eps.item()*1.00001
         eps = max(eps, 0.005) # respect the project specifications
         if eps > 0.2:
             print("Found an adversarial example with eps={} > 0.2, which is not suitable for our case. Dropping this case and moving on...".format(eps))
-
-        # re-check whether the x_adv is indeed an adversarial example
-        outs_adv = net(x_adv)
-        label_adv = outs_adv.max(dim=1)[1].item()
-        robust = (label_adv != true_label)
+            continue
 
         # save the original image as "maybe_robust" or "not_robust"
-        filename = write_to_file(x, eps, true_label.item(), robust, next(uid_gen))
+        filename = write_to_file(x, eps, true_label, robust, next(uid_gen))
         if DO_SANITY_CHECK:
-            display_image(x, title="original image (x)")
-            display_image(x_adv, title="adversarial example (x_adv)")
             x_read, _, _, _ = read_from_file(filename)
-            print(x.shape)
-            print(x_read.shape)
-            display_image(x_read, title="image written (x_read)")
-            print("filename:", filename)
-            print("max difference between `x` and `x_read`:", (x-x_read).max() )
-            print()
+            assert x.shape == torch.Size([1, 1, 28, 28])
+            assert x_read.shape == torch.Size([1, 1, 28, 28])
+            # print("max difference between `x` and `x_read`:", (x-x_read).max() )
+            display_images([x, x_read, x_adv], ["original image (x)", 
+                                                "image written (x_read)",
+                                                "adversarial example (x_adv)"])
+            assert torch.allclose(x, x_read)
 
 
 
@@ -268,12 +281,26 @@ def read_from_file(filename):
     print("Finished reading.")
     return inputs, eps, true_label, robust
 
-def display_image(x, title=None):
+def display_one_image(x, title=None):
     fig, ax = plt.subplots()
     ax.imshow(x[0, 0, :, :], vmin=0, vmax=1, cmap='gray')
     if title is not None:
         ax.set_title(title)
     ax.set_axis_off()
+    plt.show()
+
+def display_images(x_arr, title_arr=None):
+    if title_arr is None:
+        title_arr = [None] * len(x_arr)
+    fig, ax_arr = plt.subplots(1, len(x_arr))
+    for i in range(len(x_arr)):
+        x = x_arr[i]
+        title = title_arr[i]
+        ax = ax_arr[i]
+        ax.imshow(x[0, 0, :, :], vmin=0, vmax=1, cmap='gray')
+        if title is not None:
+            ax.set_title(title)
+        ax.set_axis_off()
     plt.show()
 
 
