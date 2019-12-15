@@ -1,4 +1,5 @@
 \documentclass{article}
+\usepackage[margin=3cm]{geometry} % TODO: adjust margin
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{lmodern}
@@ -30,38 +31,47 @@
 % \usepackage[shortlabels]{enumitem}
 % \setlist[itemize]{label=\textbullet}
 
-\title{Reliable and Interpretable Artificial Intelligence project report}
+\title{Reliable and Interpretable Artificial Intelligence \\ project report}
 \author{Simone \textsc{Barbaro}, Guillaume \textsc{Wang}}
-\date{}
+\date{December 2019 (HS2019)}
 
 \begin{document}
 \maketitle
 
-\section{Verification and lambdas optimization}
+\section{Zonotope representation and transformation}
 
-Let $[o_0, o_2, ... o_9]$ be the output layer of the neural network (the logits for the MNIST digit classification). Let Z be the zonotope relaxation of the neural network applied to the input image.
+We represent a zonotope $Z$ by its center $a_0 \in R^d$ and a non-negative tensor $A \in R^{k \times d}$ representing the coefficient of the $k$ error terms.
 
-Then the network is robust to the input image if $\forall (o_0, ..., o_9) \in Z, o_i < o_t \forall i$.
+Zonotope propagation through the neural network is straightforward using the transformations presented during the course.
+For convolutional layers, it suffices to apply the convolution to $A$ itself (excluding bias).
+The proof is not reproduced here due to space restrictions.
 
-Let $Z'_i = Z_i - Z_t$ for ${i = 0...9}$. Then the condition specified above is equivalent to $\forall i \forall x_i \in Z'_i$ $x_i < 0$. Which is true $\iff \max_i \max_{x_i \in Z'_i}$ $x_i < 0$.
+\section{Loss function}
 
-Since $Z'_i$ are one dimensional zonotopes, the innermost max can be computed in O(1) by assigning all the epsilons to the sign of the corresponding coefficients. So let
+Let $[o_0, o_2, ... o_9]$ be the output layer of the neural network (the logits for the MNIST digit classification). 
+Let $Z$ be the zonotope region at the output layer, for a given input region, and for given ReLU-transformation parameters $\lambda$.
 
+Then the network is verifiably robust on the input region if:
+\begin{align*}
+    \forall (o_0, ..., o_9) \in Z, \forall i \in \{0, ..., 9\}, o_i &\leq o_t \\
+    \forall (x_0, ..., x_9) \in Z', \forall i \in \{0, ..., 9\}, x_i &\leq 0 \\
+    \max_{x \in Z'} \max_i x_i &\leq 0 \\
+    \max_i \max_{x \in Z'_i} x_i &\leq 0
+\end{align*}
+where $Z'$ is the zonotope of the "violations" $[o_0 - o_t, ..., o_0 - o_t]$, and $Z'_i$ is the zonotope of $o_i - o_t$.
+
+Since $Z'_i$ are one-dimensional zonotopes, the innermost max can be computed in $O(1)$ by assigning all the error terms to the sign of the corresponding coefficients.
+
+Recall that $Z'_i$ depends on the ReLU-transformation parameters $\lambda$. The loss function:
 \begin{equation*}
-L(Z) = \max_i \max_{o_i \in Z'_i} o_i
+    L(\lambda) = \max_i \max_{x_i \in Z'_i} x_i
 \end{equation*}
+can be computed by propagating the input zonotope through the network.
+The network is verifiably robust if there exists $\lambda$ such that $L(\lambda) \leq 0$.
 
-Then we can compute $L(Z)$ after propagating the input zonotope through the network and check whether or not $L(Z) < 0$.
+\section{Learning lambda}
 
-If it is, we can return that the input is verified, otherwise we can use a gradient based algorithm to optimize the lambdas of the ReLU transformations with respect to $L(Z)$ since this loss function is differentiable. Our search for the optimal lambdas consists on repeating this step until $L(Z) < 0$.
-
+$L(\lambda)$ is differentiable, so we use gradient-based methods to minimize it.
 % TODO, we could add a paragraph about optimizers here.
-
-\section{Zonotope transformations for neural network layers}
-As we have already seen in class, linear transformations can be computed exactly for zonotopes. Linear and normalization layers compute linear transformations of their input, so they are both exact. Flatten layers simply reshape the input and for zonotopes it's enough to reshape the error terms in the same way to obtain an exact transformation.
-
-ReLU transformations are computed as indicated in the project description.
-
-Finally, convolution layers can be compute exactly as well by showing that a convolution on a zonotope is equivalent to applying the same convolution to the center and to each error tensor separately and then applying the eventual bias of the convolutional layer to the center only.
 
 \end{document}
