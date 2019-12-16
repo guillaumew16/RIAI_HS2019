@@ -8,6 +8,10 @@ formulas/
 !formulas/formulas.pdf
 !formulas/formulas.tex
 
+report/
+!report/report.pdf
+!report/report.tex
+
 mnist_data/
 
 test_cases_generated/conv*/not_robust/*

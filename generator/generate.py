@@ -43,6 +43,9 @@ parser.add_argument('--eps',
                     type=float,
                     default=0.1,
                     help='Maximum epsilon, strictly between 0.0 and 0.2. (default: 0.1)')
+parser.add_argument('--nro',
+                    action='store_false'
+                    help='"Not Robust Only". Only save the not_robust test cases')
 args = parser.parse_args()
 
 # define "globals"
@@ -54,6 +57,7 @@ ATTACK_METHOD = args.method
 if args.eps >= 0.2 or args.eps <= 0.0:
     raise UserWarning("Bad value for maximum epsilon: expected float strictly between 0.0 and 0.2, got {}".format(args.eps))
 MAX_EPSILON = args.eps
+NOT_ROBUST_ONLY = args.nro
 
 DEVICE = 'cpu'
 INPUT_SIZE = 28
@@ -145,7 +149,10 @@ def check_and_save_batch(x_torch, y_torch, x_adv_torch, net, uid_gen):
             outs_adv = net(x_adv)
             label_adv = outs_adv.max(dim=1)[1].item()
             robust = (label_adv == true_label)
-        
+        if NOT_ROBUST_ONLY and robust == True:
+            print("Failed to find an adversarial example. Flag 'nro' ('not-robust only') was set. Dropping this case and moving on...")
+            continue
+
         # determine eps
         eps = (x - x_adv).abs().max()
         if eps < 0.001 and not robust:

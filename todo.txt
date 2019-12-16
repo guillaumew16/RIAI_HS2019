@@ -9,3 +9,12 @@ Todo before production:
 - remove or review lines marked with a "DEBUG" comment
 - make sure to ignore asserts, i.e run with "-O" flag
 - and obviously review the whole thing again
+
+Note on dev-requirements:
+- When using the normal script (`code/verifier.py`) with a verbose flag, graphviz visualizations of the computation graphs can be produced when the following additional packages are installed:
+    - torchviz
+- The generator (`generator/generate.py`) requires the following additional packages:
+    - matplotlib
+    - adversarial-robustness-toolbox
+- The hyperparameter tuner (branch `tuner`) requires the following additional packages:
+    - TODO
