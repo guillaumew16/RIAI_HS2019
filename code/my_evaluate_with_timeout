@@ -2,15 +2,26 @@
 
 # evaluates on generated test cases.
 
-if [[ $# -ne 1 ]]; then
-	echo "Usage: my_evaluate_with_timeout <timeout> (in seconds). Note that the timeout used for official evaluation will be 120 seconds."
-	echo "Running with timeout=3 seconds..."
-	t=3
-else
-	t=$1
+usage="Usage: my_evaluate_with_timeout <network> <timeout> (in seconds).\n
+	\tnetwork: 'all', or one of 'fc1' 'fc2' 'fc3' 'fc4' 'fc5' 'conv1' 'conv2' 'conv3' 'conv4' 'conv5'\n
+	\tNote that the timeout used for official evaluation will be 120 seconds."
+
+if [[ $# -ne 2 ]]; then
+	echo -e ${usage}
+	exit
+fi
+netarg=$1
+case ${netarg} in
+    all|fc1|fc2|fc3|fc4|fc5|conv1|conv2|conv3|conv4|conv5) true ;;
+    *)             echo -e ${usage}; exit ;;
+esac
+t=$2
+
+if [[ ${netarg} == "all" ]]; then
+	netarg="fc1 fc2 fc3 fc4 fc5 conv1 conv2 conv3 conv4 conv5"
 fi
 
-for net in fc1 fc2 fc3 fc4 fc5 conv1 conv2 conv3 conv4 conv5
+for net in ${netarg}
 do
 	echo "Evaluating network ${net}..."
 
