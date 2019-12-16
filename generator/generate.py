@@ -116,12 +116,21 @@ def main():
     net, artDataGenerator, attacker = load()
     uid_gen = generate_uid()
 
-    for _ in range(NUM_EXAMPLES_TO_GENERATE // BATCH_SIZE): # Rk: we may generate less than NUM_EXAMPLES_TO_GENERATE examples
+    print("Generating (up to) {} test cases \n \
+            for network: {} \n \
+            Max eps: {} \n \
+            Attack method: {} \n \
+            Batch size: {} \n \
+            Only keeping not_robust test cases: {}"
+        .format(NUM_EXAMPLES_TO_GENERATE, NET_NAME, MAX_EPSILON, ATTACK_METHOD, BATCH_SIZE, NOT_ROBUST_ONLY))
+
+    for batch_i in range(NUM_EXAMPLES_TO_GENERATE // BATCH_SIZE): # Rk: we may generate less than NUM_EXAMPLES_TO_GENERATE examples
+        print("Running batch #{}/{}...".format(batch_i+1, NUM_EXAMPLES_TO_GENERATE // BATCH_SIZE))
         # run the attack by batch
         (x_np, y_np) = artDataGenerator.get_batch() # x_np, y_np: np.ndarrays
         if type(attacker) in [CarliniLInfMethod, ProjectedGradientDescent]: # TODO: all attackers should eventually have some randomness for eps (but not all support it yet)
             rand_eps = random.uniform(0.005, MAX_EPSILON)
-            print(rand_eps)
+            print("rand_eps =", rand_eps)
             attacker.set_params(eps=rand_eps)
         x_adv_np = attacker.generate(x_np, y_np)
         # convert the whole batch to torch.tensor
