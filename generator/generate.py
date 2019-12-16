@@ -41,10 +41,10 @@ parser.add_argument('--method',
                     help="Method to use to generate adversarial examples. (default: ART's PGD attack)")
 parser.add_argument('--eps',
                     type=float,
-                    default=0.1,
-                    help='Maximum epsilon, strictly between 0.0 and 0.2. (default: 0.1)')
+                    default=0.15,
+                    help='Maximum epsilon, strictly between 0.0 and 0.2. (default: 0.15)')
 parser.add_argument('--nro',
-                    action='store_false'
+                    action='store_true',
                     help='"Not Robust Only". Only save the not_robust test cases')
 args = parser.parse_args()
 
@@ -119,6 +119,10 @@ def main():
     for _ in range(NUM_EXAMPLES_TO_GENERATE // BATCH_SIZE): # Rk: we may generate less than NUM_EXAMPLES_TO_GENERATE examples
         # run the attack by batch
         (x_np, y_np) = artDataGenerator.get_batch() # x_np, y_np: np.ndarrays
+        if type(attacker) in [CarliniLInfMethod, ProjectedGradientDescent]: # TODO: all attackers should eventually have some randomness for eps (but not all support it yet)
+            rand_eps = random.uniform(0.005, MAX_EPSILON)
+            print(rand_eps)
+            attacker.set_params(eps=rand_eps)
         x_adv_np = attacker.generate(x_np, y_np)
         # convert the whole batch to torch.tensor
         x_torch = torch.from_numpy(x_np)
