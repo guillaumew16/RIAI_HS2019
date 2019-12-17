@@ -5,6 +5,7 @@
 \usepackage{lmodern}
 \usepackage{url} %, csquotes}
 \usepackage[bookmarks]{hyperref}
+\usepackage{enumitem}
 %\usepackage{breqn}
 \newcommand{\code}[1]{\texttt{#1}}
 \usepackage{amsmath}
@@ -33,7 +34,7 @@
 
 \title{Reliable and Interpretable Artificial Intelligence \\ project report}
 \author{Simone \textsc{Barbaro}, Guillaume \textsc{Wang}}
-\date{December 2019 (HS2019)}
+\date{\small{ December 2019 (HS2019)}}
 
 \begin{document}
 \maketitle
@@ -46,7 +47,7 @@ Zonotope propagation through the neural network is straightforward using the tra
 For convolutional layers, it suffices to apply the convolution to $A$ itself (excluding bias).
 The proof is not reproduced here due to space restrictions.
 
-\section{Loss function}
+\section{Loss function and learning lambdas}
 
 Let $[o_0, o_2, ... o_9]$ be the output layer of the neural network (the logits for the MNIST digit classification). 
 Let $Z$ be the zonotope region at the output layer, for a given input region, and for given ReLU-transformation parameters $\lambda$.
@@ -69,9 +70,23 @@ Recall that $Z'_i$ depends on the ReLU-transformation parameters $\lambda$. The 
 can be computed by propagating the input zonotope through the network.
 The network is verifiably robust if there exists $\lambda$ such that $L(\lambda) \leq 0$.
 
-\section{Learning lambda}
+Finally, $L(\lambda)$ is differentiable, so we use gradient-based methods to minimize it.
 
-$L(\lambda)$ is differentiable, so we use gradient-based methods to minimize it.
-% TODO, we could add a paragraph about optimizers here.
+\section{Optimizer selection}
+
+We used the optimizers from \texttt{pytorch.optim} to optimize the loss function $L(\lambda)$. 
+To select which method and which hyperparameters (e.g. learning rate) to use, we performed a grid search using \href{https://github.com/facebook/Ax}{Ax}.
+The criterion used was the verifier execution time (capped by a timeout).
+We were able to do this by using additional test cases, which we generated ourselves.
+
+\section{Test case generation and self-evaluation}
+
+We generated additional test cases by doing the following:
+\begin{itemize}[noitemsep]
+    \item Generate random datapoints of MNIST images and epsilons (randomly drawn in $[0.005, 0.2]$).
+    \item Use adversarial attacks implemented in the \href{https://github.com/IBM/adversarial-robustness-toolbox/}{ART} library to classify them into "maybe robust" and "not robust".
+    \item Make sure our verifier is sound, by running it on the "not robust" datapoints with a long timeout.
+    \item Use our own verifier to further refine this classification, by running it on the "maybe robust" datapoints with a long timeout, thus yielding some "verifiable" datapoints.
+\end{itemize}
 
 \end{document}
