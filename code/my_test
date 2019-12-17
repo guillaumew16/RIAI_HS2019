@@ -4,7 +4,7 @@
 
 usage="Usage: my_test <v || nv> <net> [timeout]\n
 	\tv for verbose, nv for not-verbose\n
-	\tnet must be one of: fc1 fc2 fc3 fc4 fc5 conv1 conv2 conv3 conv4 conv5
+	\tnet must be one of: fc1 fc2 fc3 fc4 fc5 conv1 conv2 conv3 conv4 conv5\n
 	\ttimeout is to be specified in seconds (default: 3 seconds)"
 
 if [[ $# -ne 2 && $# -ne 3 ]]; then
@@ -64,6 +64,25 @@ else
 	exit 0
 fi
 
+
+
+# conv2 (15 sec) and conv3 (85 sec) are good choices to test performance improvements.
+# conv5 currently takes more than 120 sec to verify.
+
 echo "Evaluating network ${net}..."
-echo -ne "\ttest_cases/${net}/${spec}: \t"
-timeout ${t}s python verifier.py --net ${net} --spec ../test_cases/${net}/${spec} ${verbosity} || echo "timed out (or error)"
+# echo -ne "\ttest_cases/${net}/${spec}: \t"
+# timeout ${t}s python verifier.py --net ${net} --spec ../test_cases/${net}/${spec} ${verbosity} || echo "timed out (or error)"
+
+echo -e "\tOn verifiable test cases (should output 'verified')"
+for spec in `ls ../preliminary_submission_test_cases/${net}/maybe_robust`
+do
+	echo -ne "\t\t${spec}: \t"
+	timeout ${t}s python timed_verifier.py --net ${net} --spec ../preliminary_submission_test_cases/${net}/maybe_robust/${spec} || echo "not verified"
+done
+
+# echo -e "\tOn non-robust test cases (should output 'not verified')"
+# for spec in `ls ../preliminary_submission_test_cases/${net}/not_robust`
+# do
+# 	echo -ne "\t\t${spec}: \t"
+# 	timeout ${t}s python timed_verifier.py --net ${net} --spec ../preliminary_submission_test_cases/${net}/not_robust/${spec} || echo "not verified"
+# done
