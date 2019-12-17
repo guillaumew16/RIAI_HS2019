@@ -225,20 +225,14 @@ def generate_uid():
     Filenames for test cases must be of the form 'img<x>_<epsilon>.txt'
     """
     uids = []
-    with os.scandir(BASE_DIR_PATH+"/maybe_robust") as it:
-        for f_name in it:
-            under_score_pos = f_name.name.rfind('_')
-            if under_score_pos == -1:
-                warnings.warn(BASE_DIR_PATH+"/maybe_robust contains a file with bad filename: "+f_name+" (filename should contain '_')")
-                continue
-            uids.append( f_name.name[0:under_score_pos] )
-    with os.scandir(BASE_DIR_PATH+"/not_robust") as it:
-        for f_name in it:
-            under_score_pos = f_name.name.rfind('_')
-            if under_score_pos == -1:
-                warnings.warn(BASE_DIR_PATH+"/not_robust contains a file with bad filename: "+f_name+" (filename should contain '_')")
-                continue
-            uids.append( f_name.name[0:under_score_pos] )
+    for categ in ["maybe_robust", "not_robust", "verifiable"]:
+        with os.scandir(os.path.join(BASE_DIR_PATH, categ)) as it:
+            for f_name in it:
+                under_score_pos = f_name.name.rfind('_')
+                if under_score_pos == -1:
+                    warnings.warn("{}/{} contains a file with bad filename: {} (filename should contain '_')".format(BASE_DIR_PATH, categ, f_name))
+                    continue
+                uids.append( f_name.name[0:under_score_pos] )
     idx = 0
     while True:
         uid = "img" + str(idx) # candidate uid
