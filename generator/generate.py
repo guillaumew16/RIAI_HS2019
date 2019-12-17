@@ -15,7 +15,6 @@ from networks import FullyConnected, Conv
 from art.classifiers import BlackBoxClassifier, PyTorchClassifier
 from art.data_generators import PyTorchDataGenerator
 from art.utils import to_categorical
-from my_attacks import MyPgdAttacker
 from art.attacks import CarliniLInfMethod, ProjectedGradientDescent
 
 
@@ -327,3 +326,22 @@ def display_images(x_arr, title_arr=None):
 
 if __name__ == "__main__":
     main()
+
+
+
+# ================
+# == my attacks ==
+# ================
+# should have more or less the same interface as art.attacks.Attack (except for initialization)
+
+"""
+Args:
+    eps_step_ratio (float): eps_step / eps, where eps_step is the step size in FGSM (see adv.py)
+    k (int): nb of projections in PGD
+    num_restarts (int): number of times to try PGD with a different random seed
+"""
+class MyPgdAttacker():
+    def __init__(self, eps_step_ratio, k, num_restarts):
+        raise NotImplementedError
+
+    
