@@ -73,15 +73,22 @@ def main():
             try:
                 verified = analyze(net, inputs, eps, true_label, verbose=VERBOSE, net_name=NET_NAME)
             except Exception as exc:
-                print(exc)
+                print(exc, "(not verified)")
                 verified = False
             signal.alarm(0)
 
             if verified:
                 # TODO: move f_name to BASE_DIR_PATH+"/robust"
                 print("verified")
-                pass
+                src_path = f_name.path
+                dst_path = os.path.join(BASE_DIR_PATH, "verifiable", f_name.name)
+                print("moving {} to {}".format(src_path, dst_path))
+                os.replace(src_path, dst_path)
             # else, leave it where it is
+
+            tried += 1
+            if tried == NUM_TO_TRY:
+                break
 
 
 
