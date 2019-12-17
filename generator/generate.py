@@ -185,13 +185,13 @@ def check_and_save_batch(x_torch, y_torch, x_adv_torch, net, uid_gen, rand_eps):
         if not robust:
             if eps < 0.001:
                 print("WARNING: we claim to have found an adversarial example with eps={}, which is suspiciously low".format(eps))
-            eps = eps.item()*1.00001
+            eps = eps.item()*1.0001
             eps = max(eps, 0.005) # respect the project specifications
             if eps > 0.2:
                 print("Found an adversarial example with eps={} > 0.2, which is not suitable for our case. Dropping this case and moving on...".format(eps))
                 continue
         else:
-            eps = random.uniform(0.005, rand_eps) # randomize eps a bit. (we didn't find an adversarial example with eps < rand_eps)
+            eps = random.uniform(MIN_EPSILON, rand_eps) # randomize eps a bit. (we didn't find an adversarial example with eps < rand_eps)
 
         # save the original image as "maybe_robust" or "not_robust"
         filename = write_to_file(x, eps, true_label, robust, next(uid_gen))
