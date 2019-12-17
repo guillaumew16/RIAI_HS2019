@@ -65,7 +65,8 @@ def main():
             assert maybe_robustness == True
             
             # https://stackoverflow.com/questions/492519/timeout-on-a-function-call
-            # not necessarily very precise, only runs on Unix, and doesn't work for multiple threads; but does the job in our case.
+            # not as precise and reliable as timeout-ing in the shell, only runs on Unix, doesn't work for multiple threads; 
+            #   but does the job in this case, since we don't need precision.
             def timeout_handler(signum, frame):
                 raise Exception("timed out")
             signal.signal(signal.SIGALRM, timeout_handler)

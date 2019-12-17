@@ -44,7 +44,7 @@ parser.add_argument('--eps',
                     help='Maximum epsilon, strictly between 0.0 and 0.2. (default: 0.15)')
 parser.add_argument('--nro',
                     action='store_true',
-                    help='"Not Robust Only". Only save the not_robust test cases')
+                    help='"Not Robust Only". Only save the not_robust test cases.')
 args = parser.parse_args()
 
 # define "globals"

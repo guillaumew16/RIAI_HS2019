@@ -25,18 +25,25 @@ for net in ${netarg}
 do
 	echo "Evaluating network ${net}..."
 
-	echo -e "\tOn given test cases"
-	for spec in `ls ../test_cases/${net}`
-	do
-		echo -ne "\t\t${spec}: \t"
-		timeout ${t}s python verifier.py --net ${net} --spec ../test_cases/${net}/${spec} || echo "not verified"
-	done
+	# echo -e "\tOn given test cases"
+	# for spec in `ls ../test_cases/${net}`
+	# do
+	# 	echo -ne "\t\t${spec}: \t"
+	# 	timeout ${t}s python verifier.py --net ${net} --spec ../test_cases/${net}/${spec} || echo "not verified"
+	# done
 
-	echo -e "\tOn \"maybe robust\" test cases (should \"maybe\" output 'verified')"
-	for spec in `ls ../test_cases_generated/${net}/maybe_robust`
+	# echo -e "\tOn \"maybe robust\" test cases (should \"maybe\" output 'verified')"
+	# for spec in `ls ../test_cases_generated/${net}/maybe_robust`
+	# do
+	# 	echo -ne "\t\t${spec}: \t"
+	# 	timeout ${t}s python verifier.py --net ${net} --spec ../test_cases_generated/${net}/maybe_robust/${spec} || echo "not verified"
+	# done
+
+	echo -e "\tOn verifiable test cases (should output 'verified')"
+	for spec in `ls ../test_cases_generated/${net}/verifiable`
 	do
 		echo -ne "\t\t${spec}: \t"
-		timeout ${t}s python verifier.py --net ${net} --spec ../test_cases_generated/${net}/maybe_robust/${spec} || echo "not verified"
+		timeout ${t}s python verifier.py --net ${net} --spec ../test_cases_generated/${net}/verifiable/${spec} || echo "not verified"
 	done
 
 	echo -e "\tOn non-robust test cases (should output 'not verified')"

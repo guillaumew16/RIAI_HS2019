@@ -1,8 +1,10 @@
 #!/bin/bash
 
-#!/bin/bash
-
 # a little script for quick and dirty testing.
+# Conclusions:
+# - the verifier seems sound.
+# - conv2 (15 sec) and conv3 (85 sec) are good choices to test performance improvements.
+# - conv5 currently takes more than 120 sec to verify.
 
 usage="Usage: my_evaluate_preliminary_submission <v || nv> <net> [timeout]\n
 	\tv for verbose, nv for not-verbose\n
