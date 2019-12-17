@@ -43,10 +43,10 @@ do
 	echo "Evaluating network ${net}..."
 	
 	echo -e "\tOn verifiable test cases (should output 'verified')"
-	for spec in `ls ../preliminary_submission_test_cases/${net}/maybe_robust`
+	for spec in `ls ../preliminary_submission_test_cases/${net}/verifiable`
 	do
 		echo -ne "\t\t${spec}: \t"
-		timeout ${t}s python timed_verifier.py --net ${net} --spec ../preliminary_submission_test_cases/${net}/maybe_robust/${spec} || echo -e "not verified\n--- (timed out) ---"
+		timeout ${t}s python timed_verifier.py --net ${net} --spec ../preliminary_submission_test_cases/${net}/verifiable/${spec} || echo -e "not verified\n--- (timed out) ---"
 	done
 
 	# echo -e "\tOn non-robust test cases (should output 'not verified')"
