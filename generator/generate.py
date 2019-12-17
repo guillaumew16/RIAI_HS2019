@@ -89,7 +89,7 @@ def load():
         def predict_numpy(x):
             return net.forward( torch.from_numpy(x) ).numpy()
         classifier = PyTorchClassifier(model=net, 
-                                        loss=None, # not used (fit, fit_generator, loss_gradient are not called)
+                                        loss=torch.nn.CrossEntropyLoss(), # ART's ProjectedGradientDescent uses this
                                         optimizer=None, # not used (fit, fit_generator, __setstate__ are not called)
                                         input_shape=(1, 28, 28), 
                                         nb_classes=10,
@@ -130,15 +130,20 @@ def main():
         if type(attacker) in [CarliniLInfMethod, ProjectedGradientDescent]: # TODO: all attackers should eventually have some randomness for eps (but not all support it yet)
             rand_eps = random.uniform(0.005, MAX_EPSILON)
             print("rand_eps =", rand_eps)
-            attacker.set_params(eps=rand_eps)
+            params = {
+                'eps': rand_eps,
+                'eps_step': rand_eps/10,
+                'num_random_init': 5,
+            }
+            attacker.set_params(**params)
         x_adv_np = attacker.generate(x_np, y_np)
         # convert the whole batch to torch.tensor
         x_torch = torch.from_numpy(x_np)
         y_torch = torch.from_numpy(y_np)
         x_adv_torch = torch.from_numpy(x_adv_np)
-        check_and_save_batch(x_torch, y_torch, x_adv_torch, net, uid_gen)
+        check_and_save_batch(x_torch, y_torch, x_adv_torch, net, uid_gen, rand_eps)
     
-def check_and_save_batch(x_torch, y_torch, x_adv_torch, net, uid_gen):
+def check_and_save_batch(x_torch, y_torch, x_adv_torch, net, uid_gen, rand_eps):
     # check and save the results, image by image
     for idx in range(BATCH_SIZE):
         x = x_torch[idx].view(1, 1, 28 , 28)
@@ -155,7 +160,7 @@ def check_and_save_batch(x_torch, y_torch, x_adv_torch, net, uid_gen):
 
         # re-check whether the x_adv is indeed an adversarial example
         if torch.allclose(x, x_adv, atol=1e-9, rtol=0):
-            # when x_adv is exactly equal to x, this is how ART signals that we failed to find an adversarial example.
+            # when x_adv is exactly equal to x, this is how CarliniLInfMethod signals that we failed to find an adversarial example.
             robust = True
         else:
             outs_adv = net(x_adv)
@@ -167,13 +172,16 @@ def check_and_save_batch(x_torch, y_torch, x_adv_torch, net, uid_gen):
 
         # determine eps
         eps = (x - x_adv).abs().max()
-        if eps < 0.001 and not robust:
-            print("WARNING: we claim to have found an adversarial example with eps={}, which is suspiciously low".format(eps))
-        eps = eps.item()*1.00001
-        eps = max(eps, 0.005) # respect the project specifications
-        if eps > 0.2:
-            print("Found an adversarial example with eps={} > 0.2, which is not suitable for our case. Dropping this case and moving on...".format(eps))
-            continue
+        if not robust:
+            if eps < 0.001:
+                print("WARNING: we claim to have found an adversarial example with eps={}, which is suspiciously low".format(eps))
+            eps = eps.item()*1.00001
+            eps = max(eps, 0.005) # respect the project specifications
+            if eps > 0.2:
+                print("Found an adversarial example with eps={} > 0.2, which is not suitable for our case. Dropping this case and moving on...".format(eps))
+                continue
+        else:
+            eps = random.uniform(0.005, rand_eps) # randomize eps a bit. (we didn't find an adversarial example with eps < rand_eps)
 
         # save the original image as "maybe_robust" or "not_robust"
         filename = write_to_file(x, eps, true_label, robust, next(uid_gen))

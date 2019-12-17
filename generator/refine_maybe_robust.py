@@ -2,8 +2,9 @@ import argparse
 import os
 import random
 import warnings
+import signal
 
-# import torch
+import torch
 # from torchvision import datasets, transforms
 # import numpy as np
 # import matplotlib.pyplot as plt
@@ -26,6 +27,10 @@ parser.add_argument('--num',
                     type=int,
                     default=None,
                     help='Number of maybe_robust test cases to try to verify. (default: all)')
+parser.add_argument('--timeout',
+                    type=int,
+                    default=3,
+                    help='Timeout to use for the verifier, in seconds. (default: 3)')
 parser.add_argument('--myverbose', 
                     action='store_true', # False by default
                     help="Run the analyzer verbosely.")
@@ -35,6 +40,7 @@ args = parser.parse_args()
 NET_NAME = args.net
 BASE_DIR_PATH = '../test_cases_generated/' + args.net
 NUM_TO_TRY = args.num # if None, try to verify all
+TIMEOUT = args.timeout
 VERBOSE = args.myverbose
 
 DEVICE = 'cpu'
@@ -55,9 +61,23 @@ def main():
     tried = 0
     with os.scandir(BASE_DIR_PATH+"/maybe_robust") as it:
         for f_name in it:
-            inp, eps, true_label, maybe_robustness = read_from_file(f_name)
+            inputs, eps, true_label, maybe_robustness = read_from_file(f_name.path)
             assert maybe_robustness == True
-            if analyze(net, inputs, eps, true_label, verbose=VERBOSE, net_name=NET_NAME):
+            
+            # https://stackoverflow.com/questions/492519/timeout-on-a-function-call
+            # not necessarily very precise, only runs on Unix, and doesn't work for multiple threads; but does the job in our case.
+            def timeout_handler(signum, frame):
+                raise Exception("timed out")
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(TIMEOUT)
+            try:
+                verified = analyze(net, inputs, eps, true_label, verbose=VERBOSE, net_name=NET_NAME)
+            except Exception as exc:
+                print(exc)
+                verified = False
+            signal.alarm(0)
+
+            if verified:
                 # TODO: move f_name to BASE_DIR_PATH+"/robust"
                 print("verified")
                 pass
