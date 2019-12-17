@@ -38,10 +38,14 @@ parser.add_argument('--method',
                     choices=['my_pgd', 'art_carlini', 'art_pgd'], # TODO: add more methods
                     default='art_carlini',
                     help="Method to use to generate adversarial examples. (default: ART's PGD attack)")
-parser.add_argument('--eps',
+parser.add_argument('--maxeps',
                     type=float,
-                    default=0.15,
-                    help='Maximum epsilon, strictly between 0.0 and 0.2. (default: 0.15)')
+                    default=0.1999,
+                    help='Maximum epsilon, strictly between 0.005 and 0.2. (default: 0.1999)')
+parser.add_argument('--mineps',
+                    type=float,
+                    default=0.0051,
+                    help='Minimum epsilon, strictly between 0.005 and 0.2. (default: 0.0051)')
 parser.add_argument('--nro',
                     action='store_true',
                     help='"Not Robust Only". Only save the not_robust test cases.')
@@ -53,9 +57,14 @@ BASE_DIR_PATH = '../test_cases_generated/' + args.net
 NUM_EXAMPLES_TO_GENERATE = args.num
 DO_SANITY_CHECK = args.sc
 ATTACK_METHOD = args.method
-if args.eps >= 0.2 or args.eps <= 0.0:
-    raise UserWarning("Bad value for maximum epsilon: expected float strictly between 0.0 and 0.2, got {}".format(args.eps))
-MAX_EPSILON = args.eps
+if args.maxeps >= 0.2 or args.maxeps <= 0.005:
+    raise ValueError("Bad value for maximum epsilon: expected float strictly between 0.005 and 0.2, got {}".format(args.maxeps))
+if args.mineps >= 0.2 or args.mineps <= 0.005:
+    raise ValueError("Bad value for minimum epsilon: expected float strictly between 0.005 and 0.2, got {}".format(args.mineps))
+if args.mineps > args.maxeps:
+    raise ValueError("Bad values for mineps and maxeps: got mineps={} > maxeps={}".format(arg.mineps, arg.maxeps))
+MAX_EPSILON = args.maxeps
+MIN_EPSILON = args.mineps
 NOT_ROBUST_ONLY = args.nro
 
 DEVICE = 'cpu'
@@ -97,12 +106,12 @@ def load():
         if ATTACK_METHOD == "art_carlini":
             attacker = CarliniLInfMethod(classifier,
                                         max_iter=100, # default=10
-                                        eps=MAX_EPSILON,
+                                        # eps=,       # to be set later
                                         batch_size=BATCH_SIZE)
         elif ATTACK_METHOD == "art_pgd":
             attacker = ProjectedGradientDescent(classifier,
-                                        eps=MAX_EPSILON,
-                                        eps_step=0.05,
+                                        # eps=,       # to be set later
+                                        # eps_step=,  # to be set later
                                         batch_size=BATCH_SIZE)
         else:
             raise ValueError # the argument parser doesn't allow other values for ATTACK_METHOD
@@ -118,17 +127,18 @@ def main():
     print("Generating (up to) {} test cases \n \
             for network: {} \n \
             Max eps: {} \n \
+            Min eps: {} \n \
             Attack method: {} \n \
             Batch size: {} \n \
             Only keeping not_robust test cases: {}"
-        .format(NUM_EXAMPLES_TO_GENERATE, NET_NAME, MAX_EPSILON, ATTACK_METHOD, BATCH_SIZE, NOT_ROBUST_ONLY))
+        .format(NUM_EXAMPLES_TO_GENERATE, NET_NAME, MAX_EPSILON, MIN_EPSILON, ATTACK_METHOD, BATCH_SIZE, NOT_ROBUST_ONLY))
 
     for batch_i in range(NUM_EXAMPLES_TO_GENERATE // BATCH_SIZE): # Rk: we may generate less than NUM_EXAMPLES_TO_GENERATE examples
         print("Running batch #{}/{}...".format(batch_i+1, NUM_EXAMPLES_TO_GENERATE // BATCH_SIZE))
         # run the attack by batch
         (x_np, y_np) = artDataGenerator.get_batch() # x_np, y_np: np.ndarrays
         if type(attacker) in [CarliniLInfMethod, ProjectedGradientDescent]: # TODO: all attackers should eventually have some randomness for eps (but not all support it yet)
-            rand_eps = random.uniform(0.005, MAX_EPSILON)
+            rand_eps = random.uniform(MIN_EPSILON, MAX_EPSILON)
             print("rand_eps =", rand_eps)
             params = {
                 'eps': rand_eps,
