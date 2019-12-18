@@ -77,9 +77,9 @@ do
 	timeout ${t}s python timed_verifier.py --net ${net} --spec ../preliminary_submission_test_cases/${net}/verifiable/${spec} ${verbosity} || echo "not verified"
 done
 
-# echo -e "\tOn non-robust test cases (should output 'not verified')"
-# for spec in `ls ../preliminary_submission_test_cases/${net}/not_robust`
-# do
-# 	echo -ne "\t\t${spec}: \t"
-# 	timeout ${t}s python timed_verifier.py --net ${net} --spec ../preliminary_submission_test_cases/${net}/not_robust/${spec} || echo "not verified"
-# done
+echo -e "\tOn non-robust test cases (should output 'not verified')"
+for spec in `ls ../preliminary_submission_test_cases/${net}/not_robust`
+do
+	echo -ne "\t\t${spec}: \t"
+	timeout ${t}s python timed_verifier.py --net ${net} --spec ../preliminary_submission_test_cases/${net}/not_robust/${spec} || echo "not verified"
+done

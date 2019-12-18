@@ -5,7 +5,7 @@ import torch.optim as optim
 from zonotope import Zonotope
 from networks import Normalization
 
-from znet import zNet, zLoss, zMaxSumOfViolations, zMaxViolation
+from znet import zNet, zLoss, zMaxSumOfViolations, zSumOfMaxIndividualViolations, zMaxViolation
 
 
 class Analyzer:
@@ -44,6 +44,7 @@ class Analyzer:
 
         self.znet = zNet(net, input_shape=inp.shape[1:], nb_classes=nb_classes)
         # self.zloss = zMaxSumOfViolations(true_label=true_label, nb_classes=nb_classes)
+        # self.zloss = zSumOfMaxIndividualViolations(true_label=true_label, nb_classes=nb_classes)
         self.zloss = zMaxViolation(true_label=true_label, nb_classes=nb_classes)
 
         upper = inp + eps
@@ -87,16 +88,18 @@ class Analyzer:
         # TODO: select optimizer and parameters https://pytorch.org/docs/stable/optim.html. E.g:
         # optimizer = optim.SGD(<parameters>, lr=0.01, momentum=0.9)
         if self.zloss.has_lambdas:
-            optimizer = optim.Adam([self.zloss.logit_lambdas, *self.znet.lambdas], lr=0.01)
+            optimizer = optim.Adam([self.zloss.logit_lambdas, *self.znet.lambdas], lr=0.1)
+            # zm.zReLU has the feature that setting the requires_gradient to False makes us use DeepZ, e.g:
+            # self.zloss.logit_lambdas.requires_grad = False
         else:
-            optimizer = optim.Adam([*self.znet.lambdas], lr=0.01)
-        # zm.zReLU has the feature that setting the requires_gradient to False makes us use DeepZ, e.g:
-        # self.zloss.logit_lambdas.requires_grad = False
+            optimizer = optim.Adam([*self.znet.lambdas], lr=0.1)
 
         dataset = [self.input_zonotope]  # TODO: can run the optimizer on different zonotopes in general
         # e.g we could try partitioning the zonotopes into smaller zonotopes and verify them separately
         for inp_zono in dataset:
-            if verbose: print("Analyzer.analyze(): performing the optimization on inp_zono: {}".format(inp_zono))
+            if verbose: 
+                print("Analyzer.analyze(): performing the optimization on inp_zono: {}".format(inp_zono))
+                print("Analyzer.analyze(): using loss function {} and optimizer {}".format(type(self.zloss), optimizer))
             # aaaand actually for now just run this optimizer ad infinitum. TODO: do something smarter
             while_counter = 0
             while True:
@@ -109,7 +112,6 @@ class Analyzer:
                 loss = self.zloss(out_zono, verbose=verbose)
 
                 if loss <= 0:  # TODO: floating point problems? (there is indeed still a pb here, since zMaxSumOfViolations is non-negative.)
-
                     if verbose: print("Analyzer.analyze(): found loss<=0 (loss={}) after {} iterations. The property is proved.".format(loss.item(), while_counter))
                     return True
                 if verbose:

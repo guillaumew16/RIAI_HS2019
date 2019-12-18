@@ -169,10 +169,51 @@ class zMaxSumOfViolations(zLoss):
         violation_zono = zonotope - zonotope[self.true_label]
         violation_zono = self.__relu_zlayer(violation_zono, verbose)
         res = violation_zono.sum().upper()
+        # # comparing zMaxSumOfViolations with zSumOfMaxIndividualViolations (SoMIV) -- for DEBUG
+        # res_somiv = violation_zono.upper().clamp(min=0).sum()
+        # print(res)
+        # print(res_somiv)
+        # print()
         if verbose:
             print("upper bound of violation for each class (Rk: loss is NOT equal to the sum of the following):")
             print(violation_zono.upper())
             print("finished running zMaxSumOfViolations.forward().")
+        return res
+
+
+class zSumOfMaxIndividualViolations(zLoss):
+    """
+    The sum of the maximum individual violations over the zonotope. 
+    Note that this is NOT equivalent to the max sum of violations (it's an upper bound of it), but it's still a valid loss function.
+    Args:
+        true_label (int): the true label of the region to verify, with 0 <= true_label < nb_classes.
+        nb_classes (int, optional): the number of classes for the dataset, default=10, which is the number of classes in mnist.
+    """
+
+    def __init__(self, true_label, nb_classes=10):
+        super().__init__()
+        assert true_label in range(0, nb_classes)
+        self.true_label = true_label
+        self.nb_classes = nb_classes
+
+    @property
+    def has_lambdas(self):
+        return False
+
+    def forward(self, zonotope, verbose=False):
+        """
+        Args:
+            zonotope (Zonotope): the zonotope corresponding to the last layer of a zNet, i.e the zonotope of a logit vector
+        """
+        assert zonotope.dim == torch.Size([self.nb_classes])
+        if verbose:
+            print("entering zSumOfMaxIndividualViolations.forward()...")
+        violation_zono = zonotope - zonotope[self.true_label]
+        res = violation_zono.upper().clamp(min=0).sum()
+        if verbose:
+            print("upper bound of violation for each class:")
+            print(violation_zono.upper())
+            print("finished running zSumOfMaxIndividualViolations.forward().")
         return res
 
 
@@ -206,7 +247,9 @@ class zMaxViolation(zLoss):
         violation_zono = zonotope - zonotope[self.true_label]
         res = violation_zono.upper().max()
         if verbose:
+            print("upper bound of violation for each class:")
+            print(violation_zono.upper())
             argmax = violation_zono.upper().argmax()
-            print("zMaxViolation: max violation is for class", argmax.item())
+            print("max violation is for class: ", argmax.item())
             print("finished running zMaxViolation.forward().")
         return res
