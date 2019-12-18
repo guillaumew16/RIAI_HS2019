@@ -170,6 +170,8 @@ class zMaxSumOfViolations(zLoss):
         violation_zono = self.__relu_zlayer(violation_zono, verbose)
         res = violation_zono.sum().upper()
         if verbose:
+            print("upper bound of violation for each class (Rk: loss is NOT equal to the sum of the following):")
+            print(violation_zono.upper())
             print("finished running zMaxSumOfViolations.forward().")
         return res
 
@@ -204,5 +206,7 @@ class zMaxViolation(zLoss):
         violation_zono = zonotope - zonotope[self.true_label]
         res = violation_zono.upper().max()
         if verbose:
-            print("finished running zMaxSumOfViolations.forward().")
+            argmax = violation_zono.upper().argmax()
+            print("zMaxViolation: max violation is for class", argmax.item())
+            print("finished running zMaxViolation.forward().")
         return res
