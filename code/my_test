@@ -71,10 +71,10 @@ echo "Evaluating network ${net}..."
 # timeout ${t}s python verifier.py --net ${net} --spec ../test_cases/${net}/${spec} ${verbosity} || echo "timed out (or error)"
 
 echo -e "\tOn verifiable test cases (should output 'verified')"
-for spec in `ls ../preliminary_submission_test_cases/${net}/maybe_robust`
+for spec in `ls ../preliminary_submission_test_cases/${net}/verifiable`
 do
 	echo -ne "\t\t${spec}: \t"
-	timeout ${t}s python timed_verifier.py --net ${net} --spec ../preliminary_submission_test_cases/${net}/maybe_robust/${spec} || echo "not verified"
+	timeout ${t}s python timed_verifier.py --net ${net} --spec ../preliminary_submission_test_cases/${net}/verifiable/${spec} || echo "not verified"
 done
 
 # echo -e "\tOn non-robust test cases (should output 'not verified')"
