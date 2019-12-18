@@ -55,6 +55,6 @@ do
 	# for spec in `ls ../preliminary_submission_test_cases/${net}/not_robust`
 	# do
 	# 	echo -ne "\t\t${spec}: \t"
-	# 	timeout ${t}s python timed_verifier.py --net ${net} --spec ../preliminary_submission_test_cases/${net}/not_robust/${spec} || echo "not verified"
+	# 	timeout ${t}s python timed_verifier.py --net ${net} --spec ../preliminary_submission_test_cases/${net}/not_robust/${spec} ${verbosity} || echo "not verified"
 	# done
 done
