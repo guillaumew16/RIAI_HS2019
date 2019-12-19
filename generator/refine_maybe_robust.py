@@ -50,8 +50,6 @@ INPUT_SIZE = 28
 # create output dir if it doesn't exist yet
 os.makedirs(BASE_DIR_PATH+"/verifiable", exist_ok=True)
 
-
-
 def main():
     print("Refining (up to) {} maybe_robust test cases \n \
             for network: {} \n \

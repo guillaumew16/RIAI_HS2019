@@ -77,6 +77,7 @@ def load():
             )
         elif ATTACK_METHOD == "art_pgd":
             attacker = ProjectedGradientDescent(classifier,
+                                        max_iter=500, # default=100
                                         # eps=,       # to be set later
                                         # eps_step=,  # to be set later
             )
@@ -107,7 +108,7 @@ def main():
             if type(attacker) in [CarliniLInfMethod, ProjectedGradientDescent]: # TODO: all attackers should eventually have some randomness for eps (but not all support it yet)
                 params = {
                     'eps': eps * 0.99999,
-                    'eps_step': eps/10,
+                    'eps_step': eps/64,
                     'num_random_init': 5,
                 }
                 attacker.set_params(**params)

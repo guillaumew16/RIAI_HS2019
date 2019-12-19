@@ -75,6 +75,7 @@ BATCH_SIZE = min(NUM_EXAMPLES_TO_GENERATE, 5)
 # create output dirs if they don't exist yet
 os.makedirs(BASE_DIR_PATH+"/maybe_robust", exist_ok=True)
 os.makedirs(BASE_DIR_PATH+"/not_robust", exist_ok=True)
+os.makedirs(BASE_DIR_PATH+"/verifiable", exist_ok=True)
 
 def load():
     # load network to attack
