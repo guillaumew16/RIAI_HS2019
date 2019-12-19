@@ -121,9 +121,6 @@ def load():
 
 
 def main():
-    net, artDataGenerator, attacker = load()
-    uid_gen = generate_uid()
-
     print("Generating (up to) {} test cases \n \
             for network: {} \n \
             Max eps: {} \n \
@@ -132,6 +129,9 @@ def main():
             Batch size: {} \n \
             Only keeping not_robust test cases: {}"
         .format(NUM_EXAMPLES_TO_GENERATE, NET_NAME, MAX_EPSILON, MIN_EPSILON, ATTACK_METHOD, BATCH_SIZE, NOT_ROBUST_ONLY))
+
+    net, artDataGenerator, attacker = load()
+    uid_gen = generate_uid()
 
     for batch_i in range(NUM_EXAMPLES_TO_GENERATE // BATCH_SIZE): # Rk: we may generate less than NUM_EXAMPLES_TO_GENERATE examples
         print("Running batch #{}/{}...".format(batch_i+1, NUM_EXAMPLES_TO_GENERATE // BATCH_SIZE))

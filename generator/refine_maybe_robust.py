@@ -52,6 +52,12 @@ os.makedirs(BASE_DIR_PATH+"/verifiable", exist_ok=True)
 
 
 def main():
+    print("Refining (up to) {} maybe_robust test cases \n \
+            for network: {} \n \
+            with timeout: {} \n \
+            Executing analyzer verbosely: {}"
+        .format(NUM_EXAMPLES_TO_GENERATE, NET_NAME, TIMEOUT, VERBOSE))
+
     # load concrete network
     net = get_net(NET_NAME)
     net.load_state_dict(torch.load('../mnist_nets/%s.pt' % NET_NAME, map_location=torch.device(DEVICE)))
@@ -79,7 +85,7 @@ def main():
             signal.alarm(0)
 
             if verified:
-                # TODO: move f_name to BASE_DIR_PATH+"/robust"
+                # move f_name to BASE_DIR_PATH+"/verifiable"
                 print("verified")
                 src_path = f_name.path
                 dst_path = os.path.join(BASE_DIR_PATH, "verifiable", f_name.name)
