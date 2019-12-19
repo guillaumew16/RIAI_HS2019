@@ -40,7 +40,8 @@ args = parser.parse_args()
 # define "globals"
 NET_NAME = args.net
 BASE_DIR_PATH = '../test_cases_generated/' + args.net
-NUM_EXAMPLES_TO_GENERATE = args.num
+# BASE_DIR_PATH = '../test_cases/' + args.net
+NUM_TO_ATTACK = args.num
 ATTACK_METHOD = args.method
 
 DEVICE = 'cpu'
@@ -90,7 +91,7 @@ def main():
     print("Attacking (up to) {} maybe_robust test cases \n \
             for network: {} \n \
             Attack method: {}"
-        .format(NUM_EXAMPLES_TO_GENERATE, NET_NAME, ATTACK_METHOD))
+        .format(NUM_TO_ATTACK, NET_NAME, ATTACK_METHOD))
 
     net, attacker = load()
 
@@ -102,9 +103,7 @@ def main():
 
             # convert to np.ndarrays and feed to ART attacker
             x_np = inputs.numpy()
-            print(x_np.shape)
-            assert False
-            y_np = to_categorical(true_label)
+            y_np = to_categorical([true_label], nb_classes=10)
             if type(attacker) in [CarliniLInfMethod, ProjectedGradientDescent]: # TODO: all attackers should eventually have some randomness for eps (but not all support it yet)
                 params = {
                     'eps': eps,
@@ -121,10 +120,9 @@ def main():
             # check whether attack succeeded
             outs_adv = net(x_adv_torch)
             label_adv = outs_adv.max(dim=1)[1].item()
-            print( (x_torch - x_adv_torch).abs().max() <= eps ) # should always output True
             if not (x_torch - x_adv_torch).abs().max() <= eps:
-                raise UserWarning
-            found_advers = (label_adv != true_label) and (x_torch - x_adv_torch).abs().max() <= eps
+                raise UserWarning("The attacker returned a x_adv that is more than eps away from the original image.")
+            found_advers = (label_adv != true_label) # and (x_torch - x_adv_torch).abs().max() <= eps
 
             if found_advers:
                 # move f_name to BASE_DIR_PATH+"/not_robust"
@@ -133,10 +131,12 @@ def main():
                 dst_path = os.path.join(BASE_DIR_PATH, "not_robust", f_name.name)
                 print("moving {} to {}".format(src_path, dst_path))
                 os.replace(src_path, dst_path)
-            # else, leave it where it is
+            else:
+                # else, leave it where it is
+                print("failed to find an adversarial example :/")
 
             tried += 1
-            if tried == NUM_TO_TRY:
+            if tried == NUM_TO_ATTACK:
                 break
 
 # utility functions
@@ -191,6 +191,14 @@ def read_from_file(filename):
 
     print("Finished reading.")
     return inputs, eps, true_label, robust
+
+def display_one_image(x, title=None):
+    fig, ax = plt.subplots()
+    ax.imshow(x[0, 0, :, :], vmin=0, vmax=1, cmap='gray')
+    if title is not None:
+        ax.set_title(title)
+    ax.set_axis_off()
+    plt.show()
 
 
 

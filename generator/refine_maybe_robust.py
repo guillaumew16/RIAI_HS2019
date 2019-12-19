@@ -39,6 +39,7 @@ args = parser.parse_args()
 # define "globals"
 NET_NAME = args.net
 BASE_DIR_PATH = '../test_cases_generated/' + args.net
+# BASE_DIR_PATH = '../test_cases/' + args.net
 NUM_TO_TRY = args.num # if None, try to verify all
 TIMEOUT = args.timeout
 VERBOSE = args.myverbose
@@ -91,7 +92,9 @@ def main():
                 dst_path = os.path.join(BASE_DIR_PATH, "verifiable", f_name.name)
                 print("moving {} to {}".format(src_path, dst_path))
                 os.replace(src_path, dst_path)
-            # else, leave it where it is
+            else:
+                # else, leave it where it is
+                print("failed to verify this test case :/")
 
             tried += 1
             if tried == NUM_TO_TRY:
