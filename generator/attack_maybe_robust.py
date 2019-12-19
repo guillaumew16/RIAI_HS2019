@@ -33,7 +33,7 @@ parser.add_argument('--num',
 parser.add_argument('--method', 
                     type=str,
                     choices=['my_pgd', 'art_carlini', 'art_pgd'], # TODO: add more methods
-                    default='art_carlini',
+                    default='art_pgd',
                     help="Method to use to generate adversarial examples. (default: ART's PGD attack)")
 args = parser.parse_args()
 
@@ -106,7 +106,7 @@ def main():
             y_np = to_categorical([true_label], nb_classes=10)
             if type(attacker) in [CarliniLInfMethod, ProjectedGradientDescent]: # TODO: all attackers should eventually have some randomness for eps (but not all support it yet)
                 params = {
-                    'eps': eps,
+                    'eps': eps * 0.99999,
                     'eps_step': eps/10,
                     'num_random_init': 5,
                 }

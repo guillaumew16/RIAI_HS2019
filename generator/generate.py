@@ -36,7 +36,7 @@ parser.add_argument('--sc',
 parser.add_argument('--method', 
                     type=str,
                     choices=['my_pgd', 'art_carlini', 'art_pgd'], # TODO: add more methods
-                    default='art_carlini',
+                    default='art_pgd',
                     help="Method to use to generate adversarial examples. (default: ART's PGD attack)")
 parser.add_argument('--maxeps',
                     type=float,

@@ -57,7 +57,7 @@ def main():
             for network: {} \n \
             with timeout: {} \n \
             Executing analyzer verbosely: {}"
-        .format(NUM_EXAMPLES_TO_GENERATE, NET_NAME, TIMEOUT, VERBOSE))
+        .format(NUM_TO_TRY, NET_NAME, TIMEOUT, VERBOSE))
 
     # load concrete network
     net = get_net(NET_NAME)
