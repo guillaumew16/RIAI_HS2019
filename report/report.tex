@@ -17,6 +17,7 @@
 \newcommand{\NN}{\mathbb{N}}
 \newcommand{\eps}{\varepsilon}
 \newcommand{\ind}{\mathbbm{1}}
+\newcommand{\relu}{\text{ReLU}}
 
 % \theoremstyle{definition}
 % \newtheorem{definition}{Definition}
@@ -41,33 +42,62 @@
 
 \section{Zonotope representation and transformation}
 
-We represent a zonotope $Z$ by its center $a_0 \in R^d$ and a non-negative tensor $A \in R^{k \times d}$ representing the coefficient of the $k$ error terms.
+We represent a zonotope $Z$ by its center $a_0 \in \RR^d$ and a non-negative tensor $A \in \RR^{k \times d}$ representing the coefficient of the $k$ error terms.
 
 Zonotope propagation through the neural network is straightforward using the transformations presented during the course.
 For convolutional layers, it suffices to apply the convolution to $A$ itself (excluding bias).
 The proof is not reproduced here due to space restrictions.
 
-\section{Loss function and learning lambdas}
+\section{Loss function and learning \texorpdfstring{$\lambda$'s}{lambdas}}
 
 Let $[o_0, o_2, ... o_9]$ be the output layer of the neural network (the logits for the MNIST digit classification). 
-Let $Z$ be the zonotope region at the output layer, for a given input region, and for given ReLU-transformation parameters $\lambda$.
+Let $Z_{out} =: Z$ be the zonotope region at the output layer, for a given input region $Z_{in}$, and for given ReLU-transformation parameters $\lambda$.
 
 Then the network is verifiably robust on the input region if:
-\begin{align*}
-    \forall (o_0, ..., o_9) \in Z, \forall i \in \{0, ..., 9\}, o_i &\leq o_t \\
-    \forall (x_0, ..., x_9) \in Z', \forall i \in \{0, ..., 9\}, x_i &\leq 0 \\
-    \max_{x \in Z'} \max_i x_i &\leq 0 \\
-    \max_i \max_{x \in Z'_i} x_i &\leq 0
-\end{align*}
-where $Z'$ is the zonotope of the "violations" $[o_0 - o_t, ..., o_0 - o_t]$, and $Z'_i$ is the zonotope of $o_i - o_t$.
+\begin{align}
+    &\forall (o_0, ..., o_9) \in Z, \forall i \in \{0, ..., 9\}, o_i \leq o_t \nonumber \\
+    \iff & \forall (x_0, ..., x_9) \in Z', \forall i \in \{0, ..., 9\}, x_i \leq 0 \nonumber \quad
+    \iff Z' \subset \RR_{-}^{10} \label{eq:verified_iff} \tag{*}
+\end{align}
+where $Z'$ is the zonotope of the "violations" $[x_0, ..., x_9] := [o_0 - o_t, ..., o_9 - o_t]$.
+There are multiple ways of translating this property into a loss function.
 
+\paragraph{Maximum violation (\texttt{zMaxViolation})}
+\begin{align*}
+    ( \ref{eq:verified_iff} )
+    \iff & \forall x \in Z', \forall i, x_i \leq 0 \\
+    \iff & \forall i, \forall x \in Z'_i, x_i \leq 0 \\
+    \iff & \max_i \max_{x \in Z'_i} x_i \leq 0
+\end{align*}
+where $Z'_i$ is the zonotope of $x_i$ ($Z'_i = \{ x_i; \exists y \in Z', y_i = x_i \}$).
 Since $Z'_i$ are one-dimensional zonotopes, the innermost max can be computed in $O(1)$ by assigning all the error terms to the sign of the corresponding coefficients.
 
-Recall that $Z'_i$ depends on the ReLU-transformation parameters $\lambda$. The loss function:
-\begin{equation*}
-    L(\lambda) = \max_i \max_{x_i \in Z'_i} x_i
-\end{equation*}
-can be computed by propagating the input zonotope through the network.
+\paragraph{Sum of maximum individual violations (\texttt{zSumOfMaxIndividualViolations})}
+\begin{align*}
+    ( \ref{eq:verified_iff} )
+    \iff & \forall i, \max_{x \in Z'_i} x_i \leq 0 \\
+    \iff & \sum_i \left( \max_{x \in Z'_i} x_i \right)^+ \leq 0 \\
+\end{align*}
+Note that $\max_{x \in Z'_i} x_i$ is just a scalar, so taking its positive part is easy.
+
+\paragraph{Maximum sum of violations (\texttt{zMaxSumOfViolations})}
+\begin{align*}
+    ( \ref{eq:verified_iff} )
+    \iff & \forall x \in Z', \forall i, x_i \leq 0 \\
+    \iff & \forall x \in Z', \sum_i x_i^+ = \sum_i \relu(x_i) \leq 0 \\
+    \iff & \max_{x \in Z'} \sum_i \relu(x_i) = \max Z'' \leq 0  
+\end{align*}
+where $Z''$ is the zonotope of $\sum_i \relu(x_i)$
+Note that computing this requires performing an additional ReLU zonotope transformation.
+
+Recall that $Z_{out}$ (and so $Z'_i$ and $Z''$) depends on the ReLU-transformation parameters $\lambda$. Each of the possible loss functions:
+\footnote{In practice, all three loss functions seemed to yield similar performances, with "maximum sum of violations" being slightly slower due to the additional ReLU transformation.}
+\begin{align}
+    L(\lambda) &= \max_i \max_{x_i \in Z'_i} x_i                 \tag{maximum violation} \\
+    L(\lambda) &= \sum_i \left( \max_{x \in Z'_i} x_i \right)^+  \tag{sum of maximum individual violations} \\ 
+    L(\lambda) &= \max Z''                                       \tag{maximum sum of violations}
+\end{align}
+can be computed by propagating the input zonotope $Z_{in}$ through the network.
 The network is verifiably robust if there exists $\lambda$ such that $L(\lambda) \leq 0$.
 
 Finally, $L(\lambda)$ is differentiable, so we use gradient-based methods to minimize it.

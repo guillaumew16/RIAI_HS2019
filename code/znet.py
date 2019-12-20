@@ -132,7 +132,6 @@ class zMaxSumOfViolations(zLoss):
     """
     The max sum of violations over the zonotope:
         max_{x(=logit) in output_zonotope} sum_{label l s.t logit[l] > logit[true_label]} (logit[l] - logit[true_label])
-    Actually we didn't find any other reasonable choice of loss, cf formulas.pdf.
     Args:
         true_label (int): the true label of the region to verify, with 0 <= true_label < nb_classes.
         nb_classes (int, optional): the number of classes for the dataset, default=10, which is the number of classes in mnist.
