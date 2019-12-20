@@ -9,13 +9,13 @@ INPUT_SIZE = 28
 
 def analyze(net, inputs, eps, true_label, verbose=False, net_name=None):
     ana = Analyzer(net, inputs, eps, true_label)
-    if verbose:
-        gv_path = "../graphviz_outputs/"
-        if net_name is not None:
-            gv_path += net_name + "/"
-        ana.make_dot_loss(gv_path + "loss.gv")
-        ana.make_dot_znet(gv_path + "znet.gv")
-        ana.make_dot_concrete(gv_path + "concrete_net.gv")
+    # if verbose:
+    #     gv_path = "../graphviz_outputs/"
+    #     if net_name is not None:
+    #         gv_path += net_name + "/"
+    #     ana.make_dot_loss(gv_path + "loss.gv")
+    #     ana.make_dot_znet(gv_path + "znet.gv")
+    #     ana.make_dot_concrete(gv_path + "concrete_net.gv")
     return ana.analyze(verbose=verbose)
     # return Analyzer(net, inputs, eps, true_label).analyze(verbose=verbose)
 

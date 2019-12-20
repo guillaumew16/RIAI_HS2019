@@ -84,8 +84,8 @@ class Analyzer:
         while_counter = 0
         while True:
             # print("optimizer parameters", optimizer.__getstate__()['param_groups'][0]['params'])  # useful for debugging
-            # if verbose:
-            #     print("Analyzer.analyze(): iteration #{}".format(while_counter))
+            if verbose: # TODO: re-remove verbose
+                print("Analyzer.analyze(): iteration #{}".format(while_counter))
             optimizer.zero_grad()
             out_zono = self.znet(inp_zono, verbose=verbose)
 
@@ -94,8 +94,8 @@ class Analyzer:
             if loss <= 0:
                 # if verbose: print("Analyzer.analyze(): found loss<=0 (loss={}) after {} iterations. The property is proved.".format(loss.item(), while_counter))
                 return True
-            # if verbose:
-            #     print("Analyzer.analyze(): current loss:", loss.item())
+            if verbose: # TODO: re-remove verbose
+                print("Analyzer.analyze(): current loss:", loss.item())
             #     print("Analyzer.analyze(): doing loss.backward() and optimizer.step()")
             loss.backward()
             optimizer.step()
