@@ -2,11 +2,11 @@
 
 # Conclusions:
 # - the verifier seems sound.
-# - conv2 (15 sec) and conv3 (85 sec) are good choices to test performance improvements.
-# - conv5 currently takes more than 120 sec to verify.
+# - prelim conv2 (3 sec) and prelim conv3 (52 sec) are good choices to test performance improvements.
+# - prelim conv5 currently takes more than 120 sec to verify.
 
 usage="Usage: my_evaluate <prelim || original || generated> <v || nv> <net> [timeout]\n
-	\tprelim for preliminary_submission_test_cases/, original for test_cases/, generated for test_cases_generated/\n
+	\tprelim for preliminary_submission_test_cases/, original for original_test_cases/, generated for test_cases_generated/\n
 	\tv for verbose, nv for not-verbose\n
 	\tnet must be 'all' (to run on all networks) or one of: fc1 fc2 fc3 fc4 fc5 conv1 conv2 conv3 conv4 conv5\n
 	\ttimeout is to be specified in seconds (default: 3 seconds). Note that the timeout used for official evaluation will be 120 seconds."
@@ -19,7 +19,7 @@ fi
 if [[ $1 == "prelim" ]]; then
 	basedir="preliminary_submission_test_cases"
 elif [[ $1 == "original" ]]; then
-	basedir="test_cases"
+	basedir="original_test_cases"
 elif [[ $1 == "generated" ]]; then
 	basedir="test_cases_generated"
 else
@@ -54,9 +54,7 @@ fi
 for net in ${netarg}
 do
 	echo "Evaluating network ${net} on test cases in ${basedir}/ ..."
-	# echo -ne "\ttest_cases/${net}/${spec}: \t"
-	# timeout ${t}s python verifier.py --net ${net} --spec ../test_cases/${net}/${spec} ${verbosity} || echo "timed out (or error)"
-
+	
 	echo -e "\tOn verifiable test cases (should output 'verified')"
 	for spec in `ls ../${basedir}/${net}/verifiable`
 	do

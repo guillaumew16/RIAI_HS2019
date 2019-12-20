@@ -39,7 +39,7 @@ args = parser.parse_args()
 # define "globals"
 NET_NAME = args.net
 BASE_DIR_PATH = '../test_cases_generated/' + args.net
-# BASE_DIR_PATH = '../test_cases/' + args.net
+# BASE_DIR_PATH = '../original_test_cases/' + args.net
 NUM_TO_TRY = args.num # if None, try to verify all
 TIMEOUT = args.timeout
 VERBOSE = args.myverbose

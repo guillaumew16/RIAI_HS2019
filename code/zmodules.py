@@ -5,8 +5,6 @@ from zonotope import Zonotope
 from networks import Normalization
 
 
-# TODO: maybe move code from zonotope.py over here, instead of calling Zonotope methods (seems a bit more natural -- though both work)
-
 class _zModule(nn.Module):
     """
     Attributes:
