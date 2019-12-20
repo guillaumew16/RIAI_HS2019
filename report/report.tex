@@ -42,7 +42,7 @@
 
 \section{Zonotope representation and transformation}
 
-We represent a zonotope $Z$ by its center $a_0 \in \RR^d$ and a non-negative tensor $A \in \RR^{k \times d}$ representing the coefficient of the $k$ error terms.
+We represent a zonotope $Z$ by its center $a_0 \in \RR^d$ and a tensor $A \in \RR^{k \times d}$ representing the coefficient of the $k$ error terms.
 
 Zonotope propagation through the neural network is straightforward using the transformations presented during the course.
 For convolutional layers, it suffices to apply the convolution to $A$ itself (excluding bias).
@@ -105,7 +105,7 @@ Finally, $L(\lambda)$ is differentiable, so we use gradient-based methods to min
 \section{Optimizer selection}
 
 We used the optimizers from \texttt{pytorch.optim} to optimize the loss function $L(\lambda)$. 
-To select which method and which hyperparameters (e.g. learning rate) to use, we performed a grid search using \href{https://github.com/facebook/Ax}{Ax}.
+To select which method and which hyperparameters (e.g. learning rate) to use, we performed a hyperparameter search using \href{https://github.com/facebook/Ax}{Ax}.
 The criterion used was the verifier execution time (capped by a timeout).
 We were able to do this by using additional test cases, which we generated ourselves.
 
