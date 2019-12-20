@@ -44,8 +44,8 @@ class Analyzer:
 
         self.znet = zNet(net, input_shape=inp.shape[1:], nb_classes=nb_classes)
         # self.zloss = zMaxSumOfViolations(true_label=true_label, nb_classes=nb_classes)
-        self.zloss = zSumOfMaxIndividualViolations(true_label=true_label, nb_classes=nb_classes)
-        # self.zloss = zMaxViolation(true_label=true_label, nb_classes=nb_classes)
+        # self.zloss = zSumOfMaxIndividualViolations(true_label=true_label, nb_classes=nb_classes)
+        self.zloss = zMaxViolation(true_label=true_label, nb_classes=nb_classes)
 
         upper = inp + eps
         lower = inp - eps
