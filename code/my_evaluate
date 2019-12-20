@@ -2,8 +2,8 @@
 
 # Conclusions:
 # - the verifier seems sound.
-# - conv2 (15 sec) and conv3 (85 sec) are good choices to test performance improvements.
-# - conv5 currently takes more than 120 sec to verify.
+# - prelim conv2 (3 sec) and prelim conv3 (52 sec) are good choices to test performance improvements.
+# - prelim conv5 currently takes more than 120 sec to verify.
 
 usage="Usage: my_evaluate <prelim || original || generated> <v || nv> <net> [timeout]\n
 	\tprelim for preliminary_submission_test_cases/, original for original_test_cases/, generated for test_cases_generated/\n

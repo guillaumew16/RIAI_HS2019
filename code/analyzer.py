@@ -69,98 +69,59 @@ class Analyzer:
         """
         if verbose: print("entering Analyzer.analyze() with znet: \n{}".format(self.znet))
 
-        # useful stuff for debugging
-        # self.check_parameters()
-        # self.run_in_parallel()
-        # class NetByLayers(nn.Module):
-        #     def __init__(self,layers):
-        #         super().__init__()
-        #         self.layers = nn.Sequential(*layers)
-        #     def forward(self, x):
-        #         return self.layers(x)
-        # net_layers = [layer for layer in self.__net.layers]
-        # net_layers.append(nn.ReLU())
-        # net_layers.append(nn.ReLU())
-        # net_layers.append(nn.ReLU())
-        # net = NetByLayers(net_layers)
-        # self.run_in_parallel(self.input_zonotope, net)
-
-        # TODO: select optimizer and parameters https://pytorch.org/docs/stable/optim.html. E.g:
-        # optimizer = optim.SGD(<parameters>, lr=0.01, momentum=0.9)
         if self.zloss.has_lambdas:
             optimizer = optim.Adam([self.zloss.logit_lambdas, *self.znet.lambdas], lr=0.043597391352031695)
             # zm.zReLU has the feature that setting the requires_gradient to False makes us use DeepZ, e.g:
             # self.zloss.logit_lambdas.requires_grad = False
         else:
             optimizer = optim.Adam([*self.znet.lambdas], lr=0.043597391352031695)
-        
-        # WIP (ugly to commit this I know but whatevs)
-        # lr_arr = [0.1, 0.1, 0.1, 0.1]
-        # assert len(lr_arr) == len(self.znet.lambdas)
-        # optimizer = optim.Adam([
-        #     { 'params': self.znet.lambdas[i], 'lr': lr_arr[i] }
-        #     for i in #range(len(lr_arr))
-        # ], lr=0.1)
 
-        dataset = [self.input_zonotope]  # TODO: can run the optimizer on different zonotopes in general
-        # e.g we could try partitioning the zonotopes into smaller zonotopes and verify them separately
-        for inp_zono in dataset:
-            if verbose: 
-                print("Analyzer.analyze(): performing the optimization on inp_zono: {}".format(inp_zono))
-                print("Analyzer.analyze(): using loss function {} and optimizer {}".format(type(self.zloss), optimizer))
-            # aaaand actually for now just run this optimizer ad infinitum. TODO: do something smarter
-            while_counter = 0
-            while True:
-                # print("optimizer parameters", optimizer.__getstate__()['param_groups'][0]['params'])  # useful for debugging
-                if verbose:
-                    print("Analyzer.analyze(): iteration #{}".format(while_counter))
-                optimizer.zero_grad()
-                out_zono = self.znet(inp_zono, verbose=verbose)
+        inp_zono = self.input_zonotope
+        if verbose: 
+            print("Analyzer.analyze(): performing the optimization on inp_zono: {}".format(inp_zono))
+            print("Analyzer.analyze(): using loss function {} and optimizer {}".format(type(self.zloss), optimizer))
+        # just run this optimizer ad infinitum.
+        while_counter = 0
+        while True:
+            # print("optimizer parameters", optimizer.__getstate__()['param_groups'][0]['params'])  # useful for debugging
+            if verbose:
+                print("Analyzer.analyze(): iteration #{}".format(while_counter))
+            optimizer.zero_grad()
+            out_zono = self.znet(inp_zono, verbose=verbose)
 
-                loss = self.zloss(out_zono, verbose=verbose)
+            loss = self.zloss(out_zono, verbose=verbose)
 
-                if loss <= 0:  # TODO: floating point problems? (there is indeed still a pb here, since zMaxSumOfViolations is non-negative.)
-                    if verbose: print("Analyzer.analyze(): found loss<=0 (loss={}) after {} iterations. The property is proved.".format(loss.item(), while_counter))
-                    return True
-                if verbose:
-                    print("Analyzer.analyze(): current loss:", loss.item())
-                    print("Analyzer.analyze(): doing loss.backward() and optimizer.step()")
-                loss.backward()
-                optimizer.step()
+            if loss <= 0:
+                if verbose: print("Analyzer.analyze(): found loss<=0 (loss={}) after {} iterations. The property is proved.".format(loss.item(), while_counter))
+                return True
+            if verbose:
+                print("Analyzer.analyze(): current loss:", loss.item())
+                print("Analyzer.analyze(): doing loss.backward() and optimizer.step()")
+            loss.backward()
+            optimizer.step()
 
-                # print() # DEBUG
-                # print("after optimizer.step and BEFORE clamping:")
-                # for lambda_layer in self.znet.lambdas:
-                #     print("lambda layer with shape {}: #(non-zero coefficients) / #(all coefficients) = {}/{}".format(lambda_layer.shape, lambda_layer.nonzero().size(0), lambda_layer.numel() ))
-                # # Rk: these numbers don't change much! Why?
+            with torch.no_grad(): # we can safely ignore grads here. They will be recomputed from scratch at the next evaluation of the loss anyway.
+                for lambda_layer in self.znet.lambdas:
+                    lambda_layer.clamp_(min=0, max=1)
+                if self.zloss.has_lambdas:
+                    self.zloss.logit_lambdas.clamp_(min=0, max=1)
 
-                with torch.no_grad(): # we can safely ignore grads here. They will be recomputed from scratch at the next evaluation of the loss anyway.
-                    for lambda_layer in self.znet.lambdas:
-                        lambda_layer.clamp_(min=0, max=1)
-                    if self.zloss.has_lambdas:
-                        self.zloss.logit_lambdas.clamp_(min=0, max=1)
+            while_counter += 1
 
-                # print("after optimizer.step and AFTER clamping:") # DEBUG
-                # for lambda_layer in self.znet.lambdas:
-                #     print("lambda layer with shape {}: #(non-zero coefficients) / #(all coefficients) = {}/{}".format(lambda_layer.shape, lambda_layer.nonzero().size(0), lambda_layer.numel() ))
-                # print()
-
-                while_counter += 1
-
-                """
-                # for DEBUG: end the analysis early
-                # let run for break_at_iter steps
-                break_at_iter = 20
-                if while_counter < break_at_iter:
-                    continue
-                print()
-                print("out_zono.A:\n{}\nout_zono.a0:\n{}".format(out_zono.A, out_zono.a0)) # since we're exiting, we can afford to print the results without cluttering the stdout
-                # cannot use optimizer.state_dict bc it hides information (returns index of param instead of param tensor). Had to look into pytorch.optimize source code to find this.
-                print("optimizer parameters:\n", optimizer.__getstate__()['param_groups'][0]['params'])
-                # print("self.zloss.logit_lambdas:\n{}\nself.znet.lambdas:\n{}".format(self.zloss.logit_lambdas, self.znet.lambdas)) # should contain the same thing as what we just printed
-                print("For convenience in testing, we exit now (after {} iterations), even though we still have time before timeout.".format(break_at_iter))
-                return False
-                """
+            """
+            # for DEBUG: end the analysis early
+            # let run for break_at_iter steps
+            break_at_iter = 20
+            if while_counter < break_at_iter:
+                continue
+            print()
+            print("out_zono.A:\n{}\nout_zono.a0:\n{}".format(out_zono.A, out_zono.a0)) # since we're exiting, we can afford to print the results without cluttering the stdout
+            # cannot use optimizer.state_dict bc it hides information (returns index of param instead of param tensor). Had to look into pytorch.optimize source code to find this.
+            print("optimizer parameters:\n", optimizer.__getstate__()['param_groups'][0]['params'])
+            # print("self.zloss.logit_lambdas:\n{}\nself.znet.lambdas:\n{}".format(self.zloss.logit_lambdas, self.znet.lambdas)) # should contain the same thing as what we just printed
+            print("For convenience in testing, we exit now (after {} iterations), even though we still have time before timeout.".format(break_at_iter))
+            return False
+            """
 
         import warnings
         warnings.warn("Analyzer.analyze() is returning False, i.e. we're giving up even though we haven't timed out.")

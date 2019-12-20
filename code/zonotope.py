@@ -164,8 +164,6 @@ class Zonotope:
         res.a0.add_(linear.bias)
         return res
 
-    # TODO: do some tests to see whether using the full initialization map helps. So far I found one (and only one) test case where it did (fc5 on fc5/img0)
-    # TODO: that might not be the case anymore with the "clamp lambda to [0,1]" fix
     def compute_lambda_breaking_point(self, approx_neurons_only=False):
         """Returns the lambda coefficients used by the vanilla DeepZ.
         The returned value (`lambda_layer`) is a Tensor of shape [1, <*shape of nn layer>] (same as a0)
@@ -265,7 +263,7 @@ class Zonotope:
         A[self.A.shape[0]:, intersection_map] = torch.diag((mu[:, intersection_map]).reshape(-1))
         return Zonotope(A, a0)
 
-    def relu_simpler(self, lambdas=None):
+    def relu(self, lambdas=None):
         """A more readable implementation of relu(). Possibly this yields a simpler computation graph.
         Apply a ReLU layer to this zonotope.
         Args:
@@ -277,8 +275,7 @@ class Zonotope:
             if (lambdas < 0).any() or (lambdas > 1).any():
                 raise ValueError("lambdas must be in [0, 1]")
 
-        # TODO: should we do .clone().detach() or must we preserve gradient?
-        res = Zonotope(self.Z.clone())
+        res = Zonotope(self.Z.clone())  # clone data but preserve gradient (no .detach())
 
         l = self.lower()
         u = self.upper()
@@ -325,13 +322,3 @@ class Zonotope:
         res.A[self.nb_error_terms:, apn] = torch.diag(mu.reshape(-1))                   # new epsilons
         assert( res.A[self.nb_error_terms:, apn].nonzero().size(0) == mu.nonzero().size(0) )
         return res
-
-
-    def relu(self, lambdas=None):
-        res_simpl = self.relu_simpler(lambdas)
-        # DEBUG: compare the two implementations
-        # res_normal = self.relu_normal(lambdas) # need to rename the normal method for this to work
-        # assert( torch.allclose(res_simpl.Z, res_normal.Z) )
-
-        return res_simpl
-        # return res_normal
