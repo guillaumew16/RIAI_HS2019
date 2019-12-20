@@ -67,7 +67,7 @@ class Analyzer:
             Run an optimizer on `self.znet.lambdas` and `self.zloss.logit_lambdas` to minimize `self.zloss(self.znet(self.input_zonotope))`.
             Return True when we find values of the lambdas s.t loss == 0
         """
-        if verbose: print("entering Analyzer.analyze() with znet: \n{}".format(self.znet))
+        # if verbose: print("entering Analyzer.analyze() with znet: \n{}".format(self.znet))
 
         if self.zloss.has_lambdas:
             optimizer = optim.Adam([self.zloss.logit_lambdas, *self.znet.lambdas], lr=0.043597391352031695)
@@ -77,26 +77,26 @@ class Analyzer:
             optimizer = optim.Adam([*self.znet.lambdas], lr=0.043597391352031695)
 
         inp_zono = self.input_zonotope
-        if verbose: 
-            print("Analyzer.analyze(): performing the optimization on inp_zono: {}".format(inp_zono))
-            print("Analyzer.analyze(): using loss function {} and optimizer {}".format(type(self.zloss), optimizer))
+        # if verbose: 
+        #     print("Analyzer.analyze(): performing the optimization on inp_zono: {}".format(inp_zono))
+        #     print("Analyzer.analyze(): using loss function {} and optimizer {}".format(type(self.zloss), optimizer))
         # just run this optimizer ad infinitum.
         while_counter = 0
         while True:
             # print("optimizer parameters", optimizer.__getstate__()['param_groups'][0]['params'])  # useful for debugging
-            if verbose:
-                print("Analyzer.analyze(): iteration #{}".format(while_counter))
+            # if verbose:
+            #     print("Analyzer.analyze(): iteration #{}".format(while_counter))
             optimizer.zero_grad()
             out_zono = self.znet(inp_zono, verbose=verbose)
 
             loss = self.zloss(out_zono, verbose=verbose)
 
             if loss <= 0:
-                if verbose: print("Analyzer.analyze(): found loss<=0 (loss={}) after {} iterations. The property is proved.".format(loss.item(), while_counter))
+                # if verbose: print("Analyzer.analyze(): found loss<=0 (loss={}) after {} iterations. The property is proved.".format(loss.item(), while_counter))
                 return True
-            if verbose:
-                print("Analyzer.analyze(): current loss:", loss.item())
-                print("Analyzer.analyze(): doing loss.backward() and optimizer.step()")
+            # if verbose:
+            #     print("Analyzer.analyze(): current loss:", loss.item())
+            #     print("Analyzer.analyze(): doing loss.backward() and optimizer.step()")
             loss.backward()
             optimizer.step()
 
@@ -142,7 +142,7 @@ class Analyzer:
                 # with torch.no_grad(): # to see that self.znet.lambdas does indeed reference the same thing (the next for loop will print all 1's)
                 #     p.fill_(1)
                 if p.requires_grad == True:
-                    assert isinstance(zlayer, zm.zReLU)
+                    # assert isinstance(zlayer, zm.zReLU)
                     print(p)
                 else:
                     print("some frozen parameter (with requires_grad = False) of shape {}".format(p.shape))
@@ -164,7 +164,7 @@ class Analyzer:
             znet = zNet(concrete_net)
         next_point = inp_zono.a0
         next_zono = inp_zono
-        assert torch.allclose(next_point, next_zono.a0)  # at the input layer the concrete point and the zono-center are identical
+        # assert torch.allclose(next_point, next_zono.a0)  # at the input layer the concrete point and the zono-center are identical
         for i in range(len(net.layers)):
             layer = net.layers[i]
             zlayer = znet.zlayers[i]

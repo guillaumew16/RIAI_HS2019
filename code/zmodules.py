@@ -57,8 +57,8 @@ class zReLU(_zModule):
     def forward(self, zonotope, verbose=False):
         if self.__uninitialized or self.lambda_layer.requires_grad == False:  # if we're not optimizing over this zlayer's parameters, use DeepZ
             self.__uninitialized = False
-            if verbose:
-                print("zReLU: setting the lambdas for this layer using DeepZ")
+            # if verbose:
+            #     print("zReLU: setting the lambdas for this layer using DeepZ")
             self.__set_lambdas_to_deepz_(zonotope)
         return zonotope.relu(self.lambda_layer)
 
@@ -109,8 +109,8 @@ class zLinear(_zModule):
 
     def _get_out_dim(self):
         # take advantage of this call to make a sanity-check on in_dim
-        assert len(self.in_dim) == 1
-        assert self.in_dim[0] == self.weight.shape[1]
+        # assert len(self.in_dim) == 1
+        # assert self.in_dim[0] == self.weight.shape[1]
         return self.bias.shape
 
     def forward(self, zonotope, verbose=False):

@@ -61,7 +61,7 @@ class zNet(nn.Module):
         # out_dim = input_shape
         # for zlayer in self.zlayers:
         #     # print(zlayer)
-        #     assert zlayer.in_dim == out_dim
+        #     # assert zlayer.in_dim == out_dim
         #     out_dim = zlayer.out_dim()
         # assert out_dim == torch.Size([nb_classes])
 
@@ -84,8 +84,8 @@ class zNet(nn.Module):
         """
         if not isinstance(zlayer, zm._zModule):
             raise ValueError("expected a zm._zModule")
-        if verbose:
-            print("\tapplying zNet.forward_step() at layer: {}\n\ton zonotope: {}".format(zlayer, zonotope))
+        # if verbose:
+        #     print("\tapplying zNet.forward_step() at layer: {}\n\ton zonotope: {}".format(zlayer, zonotope))
         return zlayer(zonotope, verbose)
 
     def forward(self, input_zonotope, verbose=False):
@@ -93,13 +93,13 @@ class zNet(nn.Module):
         Args:
             input_zonotope (Zonotope): the zonotope, of shape A.shape=[784, 1, 28, 28]
         """
-        if verbose: print("entering zNet.forward()...")
+        # if verbose: print("entering zNet.forward()...")
         next_zono = input_zonotope.reset()  # avoid capturing, just in case. (TODO: is this actually useful?)
         for idx, zlayer in enumerate(self.zlayers):
-            if verbose:
-                print("calling zNet.forward_step() on layer #", idx)
+            # if verbose:
+            #     print("calling zNet.forward_step() on layer #", idx)
             next_zono = self.forward_step(next_zono, zlayer, verbose=verbose)
-        if verbose: print("finished running zNet.forward().")
+        # if verbose: print("finished running zNet.forward().")
         return next_zono
 
 
@@ -135,7 +135,7 @@ class zMaxSumOfViolations(zLoss):
 
     def __init__(self, true_label, nb_classes=10):
         super().__init__()
-        assert true_label in range(0, nb_classes)
+        # assert true_label in range(0, nb_classes)
         self.true_label = true_label
         self.nb_classes = nb_classes
         self.__relu_zlayer = zm.zReLU(in_dim=torch.Size([self.nb_classes]))
@@ -158,16 +158,16 @@ class zMaxSumOfViolations(zLoss):
         Args:
             zonotope (Zonotope): the zonotope corresponding to the last layer of a zNet, i.e the zonotope of a logit vector
         """
-        assert zonotope.dim == torch.Size([self.nb_classes])
-        if verbose:
-            print("entering zMaxSumOfViolations.forward()...")
+        # assert zonotope.dim == torch.Size([self.nb_classes])
+        # if verbose:
+        #     print("entering zMaxSumOfViolations.forward()...")
         violation_zono = zonotope - zonotope[self.true_label]
         violation_zono = self.__relu_zlayer(violation_zono, verbose)
         res = violation_zono.sum().upper()
-        if verbose:
-            print("upper bound of violation for each class (Rk: loss is NOT equal to the sum of the following):")
-            print(violation_zono.upper())
-            print("finished running zMaxSumOfViolations.forward().")
+        # if verbose:
+        #     print("upper bound of violation for each class (Rk: loss is NOT equal to the sum of the following):")
+        #     print(violation_zono.upper())
+        #     print("finished running zMaxSumOfViolations.forward().")
         return res
 
 
@@ -182,7 +182,7 @@ class zSumOfMaxIndividualViolations(zLoss):
 
     def __init__(self, true_label, nb_classes=10):
         super().__init__()
-        assert true_label in range(0, nb_classes)
+        # assert true_label in range(0, nb_classes)
         self.true_label = true_label
         self.nb_classes = nb_classes
 
@@ -195,15 +195,15 @@ class zSumOfMaxIndividualViolations(zLoss):
         Args:
             zonotope (Zonotope): the zonotope corresponding to the last layer of a zNet, i.e the zonotope of a logit vector
         """
-        assert zonotope.dim == torch.Size([self.nb_classes])
-        if verbose:
-            print("entering zSumOfMaxIndividualViolations.forward()...")
+        # assert zonotope.dim == torch.Size([self.nb_classes])
+        # if verbose:
+        #     print("entering zSumOfMaxIndividualViolations.forward()...")
         violation_zono = zonotope - zonotope[self.true_label]
         res = violation_zono.upper().clamp(min=0).sum()
-        if verbose:
-            print("upper bound of violation for each class:")
-            print(violation_zono.upper())
-            print("finished running zSumOfMaxIndividualViolations.forward().")
+        # if verbose:
+        #     print("upper bound of violation for each class:")
+        #     print(violation_zono.upper())
+        #     print("finished running zSumOfMaxIndividualViolations.forward().")
         return res
 
 
@@ -218,7 +218,7 @@ class zMaxViolation(zLoss):
 
     def __init__(self, true_label, nb_classes=10):
         super().__init__()
-        assert true_label in range(0, nb_classes)
+        # assert true_label in range(0, nb_classes)
         self.true_label = true_label
         self.nb_classes = nb_classes
 
@@ -231,15 +231,15 @@ class zMaxViolation(zLoss):
         Args:
             zonotope (Zonotope): the zonotope corresponding to the last layer of a zNet, i.e the zonotope of a logit vector
         """
-        assert zonotope.dim == torch.Size([self.nb_classes])
-        if verbose:
-            print("entering zMaxViolation.forward()...")
+        # assert zonotope.dim == torch.Size([self.nb_classes])
+        # if verbose:
+        #     print("entering zMaxViolation.forward()...")
         violation_zono = zonotope - zonotope[self.true_label]
         res = violation_zono.upper().max()
-        if verbose:
-            print("upper bound of violation for each class:")
-            print(violation_zono.upper())
-            argmax = violation_zono.upper().argmax()
-            print("max violation is for class: ", argmax.item())
-            print("finished running zMaxViolation.forward().")
+        # if verbose:
+        #     print("upper bound of violation for each class:")
+        #     print(violation_zono.upper())
+        #     argmax = violation_zono.upper().argmax()
+        #     print("max violation is for class: ", argmax.item())
+        #     print("finished running zMaxViolation.forward().")
         return res

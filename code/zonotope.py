@@ -30,9 +30,9 @@ class Zonotope:
         if a0 is None:
             self.Z = A_or_Z
         else:
-            assert a0.shape[1:] == A_or_Z.shape[1:]
+            # assert a0.shape[1:] == A_or_Z.shape[1:]
             self.Z = torch.cat([a0, A_or_Z], dim=0)
-        assert self.nb_error_terms >= 1
+        # assert self.nb_error_terms >= 1
 
     @property
     def a0(self):
@@ -64,12 +64,12 @@ class Zonotope:
 
     def __add__(self, other):
         if isinstance(other, Zonotope):
-            assert self.nb_error_terms == other.nb_error_terms
-            assert other.dim == torch.Size([1]) or self.dim == other.dim  # keep tight control over the broadcasting magic, bc I'm not certain how it works
+            # assert self.nb_error_terms == other.nb_error_terms
+            # assert other.dim == torch.Size([1]) or self.dim == other.dim  # keep tight control over the broadcasting magic, bc I'm not certain how it works
             return Zonotope(self.Z + other.Z)
         else:
-            assert not isinstance(other, torch.Tensor) or other.numel() == 1 \
-                   or other.shape == self.dim or other.shape == self.a0.shape  # keep tight control over the broadcasting magic
+            # assert not isinstance(other, torch.Tensor) or other.numel() == 1 \
+            #        or other.shape == self.dim or other.shape == self.a0.shape  # keep tight control over the broadcasting magic
             return Zonotope(self.A, self.a0 + other)
 
     def __neg__(self):
@@ -80,7 +80,7 @@ class Zonotope:
 
     def __mul__(self, other):
         """Multiplication by a constant"""
-        assert not isinstance(other, torch.Tensor) or other.shape == torch.Size([1])
+        # assert not isinstance(other, torch.Tensor) or other.shape == torch.Size([1])
         return Zonotope(self.Z * other)
 
     def __getitem__(self, item):
@@ -320,5 +320,5 @@ class Zonotope:
         res.Z[:1+self.nb_error_terms, apn] = res.Z[:1+self.nb_error_terms, apn] * lambdas # zonotope center + old epsilons
         res.a0[0, apn] = res.a0[0, apn] + mu                                            # recenter the zonotope
         res.A[self.nb_error_terms:, apn] = torch.diag(mu.reshape(-1))                   # new epsilons
-        assert( res.A[self.nb_error_terms:, apn].nonzero().size(0) == mu.nonzero().size(0) )
+        # assert( res.A[self.nb_error_terms:, apn].nonzero().size(0) == mu.nonzero().size(0) )
         return res
