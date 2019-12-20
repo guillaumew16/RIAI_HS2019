@@ -88,11 +88,11 @@ class Analyzer:
         # TODO: select optimizer and parameters https://pytorch.org/docs/stable/optim.html. E.g:
         # optimizer = optim.SGD(<parameters>, lr=0.01, momentum=0.9)
         if self.zloss.has_lambdas:
-            optimizer = optim.Adam([self.zloss.logit_lambdas, *self.znet.lambdas], lr=0.1)
+            optimizer = optim.Adam([self.zloss.logit_lambdas, *self.znet.lambdas], lr=0.043597391352031695)
             # zm.zReLU has the feature that setting the requires_gradient to False makes us use DeepZ, e.g:
             # self.zloss.logit_lambdas.requires_grad = False
         else:
-            optimizer = optim.Adam([*self.znet.lambdas], lr=0.1)
+            optimizer = optim.Adam([*self.znet.lambdas], lr=0.043597391352031695)
 
         dataset = [self.input_zonotope]  # TODO: can run the optimizer on different zonotopes in general
         # e.g we could try partitioning the zonotopes into smaller zonotopes and verify them separately
