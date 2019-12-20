@@ -93,7 +93,7 @@ class Analyzer:
             # self.zloss.logit_lambdas.requires_grad = False
         else:
             optimizer = optim.Adam([*self.znet.lambdas], lr=0.043597391352031695)
-        
+
         # WIP (ugly to commit this I know but whatevs)
         # lr_arr = [0.1, 0.1, 0.1, 0.1]
         # assert len(lr_arr) == len(self.znet.lambdas)
