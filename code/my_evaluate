@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# a little script for quick and dirty testing.
 # Conclusions:
 # - the verifier seems sound.
 # - conv2 (15 sec) and conv3 (85 sec) are good choices to test performance improvements.
