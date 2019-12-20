@@ -5,7 +5,7 @@ import torch.optim as optim
 from zonotope import Zonotope
 from networks import Normalization
 
-from znet import zNet, zLoss, zMaxSumOfViolations, zSumOfMaxIndividualViolations, zMaxViolation
+from znet import zNet, zMaxSumOfViolations, zSumOfMaxIndividualViolations, zMaxViolation
 
 
 class Analyzer:
@@ -19,7 +19,7 @@ class Analyzer:
 
     Attributes:
         znet (zNet): the network with zonotope variables and parameters lambda, s.t self.__net is self.znet "in the concrete"
-        zloss (zLoss): the loss function, with zonotope input, that translates the logical property to analyze
+        zloss (znet.zLoss): the loss function, with zonotope input, that translates the logical property to analyze
         input_zonotope (Zonotope): the zonotope to analyze (derived from inp and eps in the __init__)
         true_label (int): the true label of the input point
         __net (networks.FullyConnected || networks.Conv): the network to be analyzed (first layer: Normalization). kept for convenience
@@ -44,8 +44,8 @@ class Analyzer:
 
         self.znet = zNet(net, input_shape=inp.shape[1:], nb_classes=nb_classes)
         # self.zloss = zMaxSumOfViolations(true_label=true_label, nb_classes=nb_classes)
-        # self.zloss = zSumOfMaxIndividualViolations(true_label=true_label, nb_classes=nb_classes)
-        self.zloss = zMaxViolation(true_label=true_label, nb_classes=nb_classes)
+        self.zloss = zSumOfMaxIndividualViolations(true_label=true_label, nb_classes=nb_classes)
+        # self.zloss = zMaxViolation(true_label=true_label, nb_classes=nb_classes)
 
         upper = inp + eps
         lower = inp - eps
@@ -93,6 +93,14 @@ class Analyzer:
             # self.zloss.logit_lambdas.requires_grad = False
         else:
             optimizer = optim.Adam([*self.znet.lambdas], lr=0.1)
+        
+        # WIP (ugly to commit this I know but whatevs)
+        # lr_arr = [0.1, 0.1, 0.1, 0.1]
+        # assert len(lr_arr) == len(self.znet.lambdas)
+        # optimizer = optim.Adam([
+        #     { 'params': self.znet.lambdas[i], 'lr': lr_arr[i] }
+        #     for i in #range(len(lr_arr))
+        # ], lr=0.1)
 
         dataset = [self.input_zonotope]  # TODO: can run the optimizer on different zonotopes in general
         # e.g we could try partitioning the zonotopes into smaller zonotopes and verify them separately
@@ -120,11 +128,22 @@ class Analyzer:
                 loss.backward()
                 optimizer.step()
 
+                # print() # DEBUG
+                # print("after optimizer.step and BEFORE clamping:")
+                # for lambda_layer in self.znet.lambdas:
+                #     print("lambda layer with shape {}: #(non-zero coefficients) / #(all coefficients) = {}/{}".format(lambda_layer.shape, lambda_layer.nonzero().size(0), lambda_layer.numel() ))
+                # # Rk: these numbers don't change much! Why?
+
                 with torch.no_grad(): # we can safely ignore grads here. They will be recomputed from scratch at the next evaluation of the loss anyway.
                     for lambda_layer in self.znet.lambdas:
                         lambda_layer.clamp_(min=0, max=1)
                     if self.zloss.has_lambdas:
                         self.zloss.logit_lambdas.clamp_(min=0, max=1)
+
+                # print("after optimizer.step and AFTER clamping:") # DEBUG
+                # for lambda_layer in self.znet.lambdas:
+                #     print("lambda layer with shape {}: #(non-zero coefficients) / #(all coefficients) = {}/{}".format(lambda_layer.shape, lambda_layer.nonzero().size(0), lambda_layer.numel() ))
+                # print()
 
                 while_counter += 1
 

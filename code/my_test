@@ -6,7 +6,7 @@ usage="Usage: my_test <prelim || original || generated> <v || nv> <net> [timeout
 	\tprelim for preliminary_submission_test_cases/, original for test_cases/, generated for test_cases_generated/\n
 	\tv for verbose, nv for not-verbose\n
 	\tnet must be one of: fc1 fc2 fc3 fc4 fc5 conv1 conv2 conv3 conv4 conv5\n
-	\ttimeout is to be specified in seconds (default: 3 seconds)"
+	\ttimeout is to be specified in seconds (default: 3 seconds). Note that the timeout used for official evaluation will be 120 seconds."
 
 if [[ $# -ne 3 && $# -ne 4 ]]; then
 	echo -e ${usage}
