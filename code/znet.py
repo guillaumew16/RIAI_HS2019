@@ -16,14 +16,16 @@ class zNet(nn.Module):
         zlayers (list of zm._zModule): list of layers corresponding to zonotope transformations.
             Each element corresponds to a layer in `self.__net`.
             Note that `self.zlayers` is a Python list, NOT something produced by `nn.Sequential()`, contrary to the `layers` attribute in networks.py.
-        zonotopes (list of Zonotope): the list of the intermediary zonotopes (one zonotope for each zlayer + one for the output).
-            Each element is a Zonotope of shape [1, <*shape of nn layer>].
-            `self.zonotopes[i]` is the input of `self.zlayers[i]`. Thus, `self.zonotopes[-1]` is the output zonotope, and `len(self.zonotopes) = len(self.zlayers) + 1`.
         lambdas (list of torch.nn.Parameter): the list of the Znet's parameters (one `lambda_layer` tensor for each ReLU layer).
             Each element `lambda_layer` is a Tensor of shape [1, <*shape of nn layer>].
-        relu_ind (list of int): the ordered list of indices i s.t `self.zlayers[i]` is a ReLU layer.
-            Thus, `self.lambdas[i]` corresponds to the layer `self.zlayers[i]`.
         __net (networks.FullyConnected || networks.Conv): the corresponding network in the concrete, kept for convenience.
+
+    Removed attributes:
+        (**REMOVED**) zonotopes (list of Zonotope): the list of the intermediary zonotopes (one zonotope for each zlayer + one for the output).
+            Each element is a Zonotope of shape [1, <*shape of nn layer>].
+            `self.zonotopes[i]` is the input of `self.zlayers[i]`. Thus, `self.zonotopes[-1]` is the output zonotope, and `len(self.zonotopes) = len(self.zlayers) + 1`.
+        (**REMOVED**) relu_ind (list of int): the ordered list of indices i s.t `self.zlayers[i]` is a ReLU layer.
+            Thus, `self.lambdas[i]` corresponds to the layer `self.zlayers[i]`.
 
     Args:
         net (networks.FullyConnected || networks.Conv): the corresponding network in the concrete
@@ -40,7 +42,6 @@ class zNet(nn.Module):
         self.zlayers = []
         out_dim = input_shape  # the in/out_dim of the **previous** layer
         for layer in net.layers:
-            # print(layer, out_dim)
             if isinstance(layer, nn.ReLU):
                 zlayer = zm.zReLU(in_dim=out_dim)  # needs to set in_dim right away.
             elif isinstance(layer, nn.Linear):
@@ -55,24 +56,19 @@ class zNet(nn.Module):
             out_dim = zlayer.out_dim()
             self.zlayers.append(zlayer)
 
-        # sanity-check the dimensions (i.e check that pyTorch doesn't do black-magic-broadcasting that ends up being compatible but not what we want)
-        # Rk: this is not necessary, it's just a cool upside of the fact that we need to store in_dim for each zlayer
-        out_dim = input_shape
-        for zlayer in self.zlayers:
-            # print(zlayer)
-            assert zlayer.in_dim == out_dim
-            out_dim = zlayer.out_dim()
-        assert out_dim == torch.Size([nb_classes])
-
-        self.zonotopes = [None] * (len(self.zlayers) + 1)
+        # # sanity-check the dimensions (i.e check that pyTorch doesn't do black-magic-broadcasting that ends up being compatible but not what we want)
+        # # Rk: this is not necessary, it's just a cool upside of the fact that we need to store in_dim for each zlayer
+        # out_dim = input_shape
+        # for zlayer in self.zlayers:
+        #     # print(zlayer)
+        #     assert zlayer.in_dim == out_dim
+        #     out_dim = zlayer.out_dim()
+        # assert out_dim == torch.Size([nb_classes])
 
         self.lambdas = []
-        self.relu_ind = []
-        for idx, zlayer in enumerate(self.zlayers):
+        for zlayer in self.zlayers:
             if isinstance(zlayer, zm.zReLU):
-                self.lambdas.append(
-                    zlayer.lambda_layer)  # captures the nn.Parameters (in python, "Object references are passed by value")
-                self.relu_ind.append(idx)
+                self.lambdas.append(zlayer.lambda_layer)  # captures the nn.Parameters (in python, "Object references are passed by value")
 
     def __str__(self):
         toprint = ""
@@ -98,14 +94,13 @@ class zNet(nn.Module):
             input_zonotope (Zonotope): the zonotope, of shape A.shape=[784, 1, 28, 28]
         """
         if verbose: print("entering zNet.forward()...")
-        self.zonotopes[0] = input_zonotope.reset()  # avoid capturing, just in case. (TODO: is this actually useful?)
+        next_zono = input_zonotope.reset()  # avoid capturing, just in case. (TODO: is this actually useful?)
         for idx, zlayer in enumerate(self.zlayers):
             if verbose:
                 print("calling zNet.forward_step() on layer #", idx)
-                # print("self.zonotopes[{}]: {}".format(idx, self.zonotopes[idx]) )
-            self.zonotopes[idx + 1] = self.forward_step(self.zonotopes[idx], zlayer, verbose=verbose)
+            next_zono = self.forward_step(next_zono, zlayer, verbose=verbose)
         if verbose: print("finished running zNet.forward().")
-        return self.zonotopes[-1]
+        return next_zono
 
 
 # same as zNet, zLoss (and its subclasses) does NOT implement zm._zModule, but implements nn.Module directly
@@ -121,6 +116,7 @@ class zLoss(nn.Module):
 
     @property
     def has_lambdas(self):
+        # fake abstract class
         raise NotImplementedError("Do not use the class zLoss directly, but one of its subclasses")
 
     def forward(self, zonotope, verbose=False):
