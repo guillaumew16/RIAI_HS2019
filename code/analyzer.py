@@ -127,7 +127,7 @@ class Analyzer:
         warnings.warn("Analyzer.analyze() is returning False, i.e. we're giving up even though we haven't timed out.")
         return False
 
-    # Debugging utilities (DEBUG: obviously, none of these should be run in prod)
+    # Debugging utilities
     # ~~~~~~~~~~~~~~~~~~~
 
     def check_parameters(self):

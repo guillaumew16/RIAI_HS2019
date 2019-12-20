@@ -7,7 +7,7 @@ from networks import Normalization
 import zmodules as zm
 
 
-# does NOT implemented zm._zModule, but implements nn.Module directly
+# does NOT implement zm._zModule, but implements nn.Module directly
 class zNet(nn.Module):
     """
     Network where the variables are zonotopes and the parameters are lambdas.
@@ -108,7 +108,7 @@ class zNet(nn.Module):
         return self.zonotopes[-1]
 
 
-# same as zNet, zLoss (and its subclasses) does NOT implemented zm._zModule, but implements nn.Module directly
+# same as zNet, zLoss (and its subclasses) does NOT implement zm._zModule, but implements nn.Module directly
 class zLoss(nn.Module):
     """
     A wrapper class for all the loss function implementations.
@@ -168,11 +168,6 @@ class zMaxSumOfViolations(zLoss):
         violation_zono = zonotope - zonotope[self.true_label]
         violation_zono = self.__relu_zlayer(violation_zono, verbose)
         res = violation_zono.sum().upper()
-        # # comparing zMaxSumOfViolations with zSumOfMaxIndividualViolations (SoMIV) -- for DEBUG
-        # res_somiv = violation_zono.upper().clamp(min=0).sum()
-        # print(res)
-        # print(res_somiv)
-        # print()
         if verbose:
             print("upper bound of violation for each class (Rk: loss is NOT equal to the sum of the following):")
             print(violation_zono.upper())
